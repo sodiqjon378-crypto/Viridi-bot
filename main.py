@@ -75,6 +75,7 @@ conn.commit()
 def load_products_from_excel():
     excel_file = "Прайс.xlsx"
     if not os.path.exists(excel_file):
+        print("Excel fayl topilmadi!")
         return
     
     try:
@@ -224,7 +225,6 @@ async def contact_us(message: Message):
     await message.answer("📞 Murojaat uchun:\n\n👤 Telegram: @um1daxon3339\n📱 Telefon: +998937413339")
 
 
-# --- Fikr va mulohaza bo'limi ---
 @router.message(F.text == "✍️ Fikr va mulohaza")
 async def start_feedback_real(message: Message, state: FSMContext):
     await message.answer("Fikr va mulohazangizni yozib qoldiring:", reply_markup=ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="🔙 Bekor qilish")]], resize_keyboard=True))
@@ -258,7 +258,6 @@ async def view_feedbacks(message: Message):
         await message.answer(text, parse_mode="Markdown")
 
 
-# --- Dillerlar bo'limi ---
 @router.message(F.text == "🤝 Dillerlar uchun")
 async def dealer_section(message: Message):
     cursor.execute("SELECT status FROM dealers WHERE user_id = ?", (message.from_user.id,))
@@ -295,7 +294,6 @@ async def get_contact(message: Message):
             pass
 
 
-# --- Mahsulotlar va miqdor tanlash ---
 @router.message(F.text == "🛍 Mahsulotlar")
 async def show_categories(message: Message):
     kb = InlineKeyboardMarkup(
@@ -380,7 +378,6 @@ async def noop_cb(callback: CallbackQuery):
     await callback.answer()
 
 
-# --- Savatcha bo'limi ---
 @router.callback_query(F.data.startswith("addcart_"))
 async def add_to_cart(callback: CallbackQuery):
     parts = callback.data.split("_")
@@ -437,7 +434,6 @@ async def clear_cart(callback: CallbackQuery):
     await callback.message.edit_text("Savatcha tozalandi.")
 
 
-# --- BUYURTMA RASMIYLASHTIRISH JARAYONI (CHECKOUT) ---
 @router.callback_query(F.data == "start_checkout")
 async def start_checkout(callback: CallbackQuery, state: FSMContext):
     user_id = callback.from_user.id
@@ -571,7 +567,7 @@ async def process_payment(message: Message, state: FSMContext):
         summa = qty * price
         grand_total += summa
         art_str = f"[{article}] " if article else ""
-        admin_text += f"• {art_str}{name} — {qty} ta | {summa} so'm\n"
+        admin_text += f"• {art_str}{name} — {qty} ta | {summa} so'м\n"
 
     admin_text += f"\n💵 **Jami narx:** {grand_total} so'm"
 
@@ -594,7 +590,6 @@ async def process_payment(message: Message, state: FSMContext):
     await state.clear()
 
 
-# --- Admin Panel ---
 @router.message(F.text == "⚙️ Admin Panel")
 async def admin_panel(message: Message):
     if message.from_user.id in ADMIN_IDS:
@@ -684,7 +679,6 @@ async def process_description(message: Message, state: FSMContext):
     await message.answer("Mahsulot muvaffaqiyatli qo'shildi! ✅", reply_markup=admin_menu())
 
 
-# --- Mahsulotni tahrirlash ---
 @router.message(F.text == "✏️ Mahsulotni tahrirlash")
 async def start_edit_product(message: Message):
     if message.from_user.id in ADMIN_IDS:
