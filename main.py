@@ -73,7 +73,8 @@ conn.commit()
 
 # --- EXCEL FAYLDAN MAHSULOTLARNI AVTOMATIK YUKLASH ---
 def load_products_from_excel():
-    excel_file = "Прайс на май оптовикам.xlsx"
+    def load_products_from_excel():
+    excel_file = "Прайс.xlsx"
     if not os.path.exists(excel_file):
         return
     
