@@ -73,7 +73,6 @@ conn.commit()
 
 # --- EXCEL FAYLDAN MAHSULOTLARNI AVTOMATIK YUKLASH ---
 def load_products_from_excel():
-    def load_products_from_excel():
     excel_file = "Прайс.xlsx"
     if not os.path.exists(excel_file):
         return
@@ -783,6 +782,23 @@ async def start_delete_product(message: Message):
             art = f"[{p[1]}] " if p[1] else ""
             text += f"ID: {p[0]} | {art}{p[2]} — {p[3]} so'm\n"
         await message.answer(text)
+
+
+@router.message(F.text == "📋 Mahsulotlar ro'yxati")
+async def show_products_list(message: Message):
+    if message.from_user.id in ADMIN_IDS:
+        cursor.execute("SELECT id, article, name, price FROM products")
+        products = cursor.fetchall()
+        if not products:
+            await message.answer("Hozircha bazada mahsulotlar yo'q.")
+            return
+        
+        text = "📋 **Bazadagi barcha mahsulotlar:**\n\n"
+        for p in products:
+            art = f"[{p[1]}] " if p[1] else ""
+            text += f"ID: {p[0]} | {art}{p[2]} — {p[3]} so'm\n"
+        
+        await message.answer(text, parse_mode="Markdown")
 
 
 PORT = int(os.environ.get("PORT", 10000))
