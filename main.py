@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS feedback (
 conn.commit()
 
 
-# --- EXCEL FAYLDAN MAHSULOTLARNI AVTOMATIK YUKLash ---
+# --- EXCEL FAYLDAN MAHSULOTLARNI AVTOMATIK YUKLASH ---
 def load_products_from_excel():
     excel_file = "Прайс на май оптовикам.xlsx"
     if not os.path.exists(excel_file):
@@ -88,7 +88,6 @@ def load_products_from_excel():
             description = str(row.get("Описание", ""))
             price = float(row.get("цена", 0) if not pd.isna(row.get("цена")) else 0)
             
-            # Nomidan hajmini aniqlash (masalan: "500 мл" yoki "1000 мл")
             volume = "500 ml"
             name_lower = name.lower()
             if "1000 мл" in name_lower or "1 л" in name_lower:
@@ -102,7 +101,6 @@ def load_products_from_excel():
             elif "500 мл" in name_lower:
                 volume = "500 ml"
 
-            # Kategoriyani nomiga qarab taxminiy taqsimlash
             category = "homeclean"
             if "мыло" in name_lower or "cream-мыло" in name_lower:
                 category = "soap"
@@ -117,7 +115,6 @@ def load_products_from_excel():
             elif "посуды" in name_lower or "virma" in name_lower:
                 category = "soap"
 
-            # Bazada bu artikul yoki nom allaqachon bormi tekshiramiz
             cursor.execute("SELECT id FROM products WHERE article = ? OR name = ?", (article, name))
             exists = cursor.fetchone()
 
@@ -134,7 +131,6 @@ def load_products_from_excel():
     except Exception as e:
         print(f"Excel faylni o'qishda xatolik: {e}")
 
-# Ishga tushganda excelni o'qiydi
 load_products_from_excel()
 
 
@@ -807,7 +803,7 @@ async def main():
     dp.include_router(router)
     await bot.delete_webhook(drop_pending_updates=True)
     await web_server()
-    print("Bot Excel fayl integratsiyasi bilan ishga tushdi...")
+    print("Bot tayyor va ishga tushdi...")
     await dp.start_polling(bot)
 
 
