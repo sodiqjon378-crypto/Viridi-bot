@@ -2,7 +2,6 @@ import asyncio
 import logging
 import os
 import sqlite3
-import pandas as pd
 from aiohttp import web
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command
@@ -81,90 +80,30 @@ CREATE TABLE IF NOT EXISTS feedback (
 conn.commit()
 
 
-# --- RUSCHA/INGLIZCHA MATNLARNI O'ZBEK TILIGA TARJIMA QILISH ---
-def translate_to_uzbek(text):
-    if not text or pd.isna(text):
-        return ""
+# --- MAHSULOTLARNI KODNING O'ZIDAN KATEGORIYALarga BO'LIB BAZAGA YOZISH ---
+def init_default_products():
+    products_list = [
+        # (Artikul, Nomi, Kategoriya, Hajmi, Narxi, Tavsif)
+        ("140105", "VIRIS Olchali tort", "soap", "500 ml", 30000, "paxta urug'i yog'li gipoallergen suyuq krem-sovun 0+"),
+        ("110110", "VIRida Ertaknamo Bali", "soap", "1000 ml", 45000, "4 xil gialuronli antibakterial suyuq sovun, 0+, gipoallergen, kokos yog'i bilan"),
+        ("110210", "VIRida Afrika xazinalari", "soap", "1000 ml", 45000, "4 xil gialuronli antibakterial suyuq sovun, 0+, gipoallergen, argan yog'i bilan"),
+        ("110310", "VIRida Islandiya buloqlari", "soap", "1000 ml", 45000, "4 xil gialuronli antibakterial suyuq sovun, 0+, gipoallergen, paxta urug'i yog'i bilan"),
+        ("110410", "VIRida Fudzi afsonalari", "soap", "1000 ml", 45000, "4 xil gialuronli antibakterial suyuq krem-sovun, 0+, gipoallergen, paxta urug'i yog'i bilan")
+    ]
     
-    translations = {
-        "VIRIS Cherry on the cake": "VIRIS Olchali tort",
-        "VIRida Сказочное Бали": "VIRida Ertaknamo Bali",
-        "VIRida Сокровища Африки": "VIRida Afrika xazinalari",
-        "VIRida Источники Исландидии": "VIRida Islandiya buloqlari",
-        "VIRida Легенды Фудзи": "VIRida Fudzi afsonalari",
-        "жидкое крем-мыло с маслом семян хлопка гипоаллергенное 0+": "paxta urug'i yog'li gipoallergen suyuq krem-sovun 0+",
-        "Антибактериальное жидкое мыло 4 вида гиалурона , 0+, гипоаллергенное с маслом кокоas": "4 xil gialuronli antibakterial suyuq sovun, 0+, gipoallergen, kokos yog'i bilan",
-        "Антибактериальное жидкое мыло 4 вида гиалурона , 0+, гипоаллергенное с маслом кокоса": "4 xil gialuronli antibakterial suyuq sovun, 0+, gipoallergen, kokos yog'i bilan",
-        "Антибактериальное жидкое мыло 4 вида гиалурона , 0+, гипоаллергенное с маслом арганы": "4 xil gialuronli antibakterial suyuq sovun, 0+, gipoallergen, argan yog'i bilan",
-        "Антибактериальное жидкое мыло 4 вида гиалурона , 0+, гипоаллергенное с маслом семян хлопка": "4 xil gialuronli antibakterial suyuq sovun, 0+, gipoallergen, paxta urug'i yog'i bilan",
-        "Антибактериальное жидкое крем-мыло 4 вида гиалурона , 0+, гипоаллергенное с маслом семян хлопка": "4 xil gialuronli antibakterial suyuq krem-sovun, 0+, gipoallergen, paxta urug'i yog'i bilan",
-        "жидкое мыло": "suyuq sovun",
-        "мыло": "sovun"
-    }
-    
-    for en_ru, uz in translations.items():
-        text = text.replace(en_ru, uz)
-    return text
+    for art, name, cat, vol, price, desc in products_list:
+        cursor.execute("SELECT id FROM products WHERE name = ?", (name,))
+        if not cursor.fetchone():
+            cursor.execute(
+                """
+                INSERT INTO products (article, name, category, volume, price, description, media_type) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (art, name, cat, vol, price, desc, "")
+            )
+    conn.commit()
 
-
-# --- EXCEL FAYLDAN BARCHA MAHSULOTLARNI AVTOMATIK O'QISH ---
-def load_products_from_excel():
-    # Fayl nomining barcha variantlarini tekshiramiz
-    possible_files = ["Прайс.xlsx", "Прайс.xlsx", "price.xlsx"]
-    excel_file = None
-    for f in possible_files:
-        if os.path.exists(f):
-            excel_file = f
-            break
-            
-    if not excel_file:
-        print("Excel fayl topilmadi!")
-        return
-
-    try:
-        df = pd.read_excel(excel_file)
-        for _, row in df.iterrows():
-            raw_name = str(row.get("Название", ""))
-            if pd.isna(raw_name) or not raw_name or raw_name == "nan":
-                continue
-            
-            name = translate_to_uzbek(raw_name)
-            raw_desc = str(row.get("Описание", ""))
-            description = translate_to_uzbek(raw_desc) if raw_desc != "nan" else "Tavsif mavjud emas"
-            article = str(row.get("Артикул", "")) if not pd.isna(row.get("Артикул")) else ""
-            price = float(row.get("цена", 0) if not pd.isna(row.get("цена")) else 0)
-            
-            # Hajmni aniqlash
-            volume = "500 ml"
-            name_lower = raw_name.lower()
-            if "1000 мл" in name_lower or "1 л" in name_lower:
-                volume = "1000 ml"
-            elif "5200 мл" in name_lower or "5 л" in name_lower:
-                volume = "5200 ml"
-            elif "750 мл" in name_lower:
-                volume = "750 ml"
-            elif "500 мл" in name_lower:
-                volume = "500 ml"
-
-            # Barcha sovun turkumiga o'tkazamiz
-            category = "soap"
-
-            # Bazada bormi yo'qmi tekshiramiz va yangilaymiz/qo'shamiz
-            cursor.execute("SELECT id FROM products WHERE name = ?", (name,))
-            if not cursor.fetchone():
-                cursor.execute(
-                    """
-                    INSERT INTO products (article, name, category, volume, price, description, media_type) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (article, name, category, volume, price, description, "")
-                )
-        conn.commit()
-        print("Mahsulotlar Excel'dan muvaffaqiyatli yuklandi!")
-    except Exception as e:
-        print(f"Excel yuklash xatosi: {e}")
-
-load_products_from_excel()
+init_default_products()
 
 
 logging.basicConfig(level=logging.INFO)
@@ -333,7 +272,7 @@ async def add_product_photo(message: Message, state: FSMContext):
     photo_id = message.photo[-1].file_id
     await state.update_data(media_id=photo_id)
     lang = get_user_lang(message.from_user.id)
-    await message.answer("Endi mahsulot ID raqamini yoki nomini yuboring va qaysi mahsulotga rasm qo'shishni yozing." if lang == "uz" else "Введите ID товара:")
+    await message.answer("Mahsulot ID raqamini yoki nomini yuboring:" if lang == "uz" else "Введите ID товара:")
     await state.set_state(AddProductState.info)
 
 
@@ -347,13 +286,17 @@ async def add_product_finish(message: Message, state: FSMContext):
     await message.answer("✅ Rasm qabul qilindi!", reply_markup=admin_menu(lang))
 
 
-# --- MAHSULOTLARNI KATEGORIYALAR BO'YICHA KO'RSATISH ---
+# --- MAHSULOTLAR KATEGORIYALARI ---
 @router.message(F.text.in_(["🛍 Mahsulotlar", "🛍 Товары"]))
 async def show_categories(message: Message):
     lang = get_user_lang(message.from_user.id)
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🧼 Suyuq sovunlar va vositalar" if lang == "uz" else "🧼 Жидкое мыло и средства", callback_data="cat_soap")],
+            [InlineKeyboardButton(text="🏠 Uy tozalash" if lang == "uz" else "🏠 Уборка дома", callback_data="cat_homeclean")],
+            [InlineKeyboardButton(text="🍳 Oshxona uchun" if lang == "uz" else "🍳 Для кухни", callback_data="cat_degreaser")],
+            [InlineKeyboardButton(text="🧺 Kir yuvish" if lang == "uz" else "🧺 Для стирки", callback_data="cat_laundry")],
+            [InlineKeyboardButton(text="🚽 Vanna va tualet" if lang == "uz" else "🚽 Ванная и туалет", callback_data="cat_bathroom")],
+            [InlineKeyboardButton(text="🧼 Suyuq sovunlar" if lang == "uz" else "🧼 Жидкое мыло", callback_data="cat_soap")],
         ]
     )
     await message.answer("Kategoriyani tanlang:" if lang == "uz" else "Выберите категорию:", reply_markup=kb)
@@ -362,16 +305,18 @@ async def show_categories(message: Message):
 @router.callback_query(F.data.startswith("cat_"))
 async def show_products_by_cat(callback: CallbackQuery):
     lang = get_user_lang(callback.from_user.id)
-    cursor.execute("SELECT id, name, price FROM products")
+    cat = callback.data.split("_")[1]
+    cursor.execute("SELECT id, name, price FROM products WHERE category = ?", (cat,))
     products = cursor.fetchall()
 
+    back_text = "🔙 Orqaga" if lang == "uz" else "🔙 Назад"
     if not products:
-        await callback.message.edit_text("Hozircha mahsulotlar yo'q.", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Orqaga", callback_data="back_cats")]]))
+        await callback.message.edit_text("Bu kategoriyada mahsulot yo'q." if lang == "uz" else "В этой категории нет товаров.", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=back_text, callback_data="back_cats")]]))
         return
 
     kb = [[InlineKeyboardButton(text=f"{p[1]} — {p[2]} so'm", callback_data=f"prod_{p[0]}_1")] for p in products]
-    kb.append([InlineKeyboardButton(text="🔙 Orqaga", callback_data="back_cats")])
-    await callback.message.edit_text("Barcha mahsulotlar:" if lang == "uz" else "Все товары:", reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
+    kb.append([InlineKeyboardButton(text=back_text, callback_data="back_cats")])
+    await callback.message.edit_text("Mahsulotlar:" if lang == "uz" else "Товары:", reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
 
 
 @router.callback_query(F.data == "back_cats")
@@ -379,7 +324,11 @@ async def back_to_cats(callback: CallbackQuery):
     lang = get_user_lang(callback.from_user.id)
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🧼 Suyuq sovunlar va vositalar" if lang == "uz" else "🧼 Жидкое мыло и средства", callback_data="cat_soap")],
+            [InlineKeyboardButton(text="🏠 Uy tozalash" if lang == "uz" else "🏠 Уборка дома", callback_data="cat_homeclean")],
+            [InlineKeyboardButton(text="🍳 Oshxona uchun" if lang == "uz" else "🍳 Для кухни", callback_data="cat_degreaser")],
+            [InlineKeyboardButton(text="🧺 Kir yuvish" if lang == "uz" else "🧺 Для стирки", callback_data="cat_laundry")],
+            [InlineKeyboardButton(text="🚽 Vanna va tualet" if lang == "uz" else "🚽 Ванная и туалет", callback_data="cat_bathroom")],
+            [InlineKeyboardButton(text="🧼 Suyuq sovunlar" if lang == "uz" else "🧼 Жидкое мыло", callback_data="cat_soap")],
         ]
     )
     await callback.message.edit_text("Kategoriyani tanlang:", reply_markup=kb)
@@ -480,7 +429,7 @@ async def start_delete_product(message: Message, state: FSMContext):
         await state.set_state(DeleteProductState.product_id)
 
 
-@router.message(DeleteProductState.delete_product_id if 'DeleteProductState' in globals() else DeleteProductState.product_id)
+@router.message(DeleteProductState.product_id)
 async def process_delete_product(message: Message, state: FSMContext):
     if message.text == "🔙 Bekor qilish":
         await state.clear()
@@ -537,7 +486,7 @@ async def main():
     dp.include_router(router)
     await bot.delete_webhook(drop_pending_updates=True)
     await web_server()
-    print("Bot ishga tushdi va Excel mahsulotlari yuklandi!")
+    print("Bot muvaffaqiyatli ishga tushdi!")
     await dp.start_polling(bot)
 
 
