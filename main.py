@@ -9,11 +9,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
     CallbackQuery,
+    FSInputFile,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     KeyboardButton,
     Message,
-    ReplyArgumentError,
     ReplyKeyboardMarkup,
 )
 
@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS feedback (
 conn.commit()
 
 
-# --- BARCHA 46 TA MAHSULOTNI ARTIKULI BILAN BAZAGA YOZISH ---
+# --- 46 TA MAHSULOTNI ARTIKULI BILAN BAZAGA JOYlash ---
 def init_default_products():
     products_list = [
         # Suyuq sovunlar / Krem-sovunlar (soap)
@@ -160,13 +160,34 @@ bot = Bot(token=TOKEN)
 router = Router()
 
 
+# --- FSM STATE-LAR (Barcha bo'limlar uchun) ---
 class AddProductState(StatesGroup):
     media = State()
-    info = State()
+    article = State()
+    name = State()
+    category = State()
+    volume = State()
+    price = State()
+    description = State()
+
+
+class EditProductState(StatesGroup):
+    article = StateField = State()
+    field = State()
+    new_value = State()
 
 
 class DeleteProductState(StatesGroup):
     article = State()
+
+
+class DealerRegState(StatesGroup):
+    full_name = State()
+    phone = State()
+
+
+class FeedbackState(StatesGroup):
+    text = State()
 
 
 def get_user_lang(user_id):
@@ -179,38 +200,45 @@ def main_menu(lang="uz", is_admin=False):
     if lang == "ru":
         kb = [
             [KeyboardButton(text="🛍 Товары"), KeyboardButton(text="🛒 Корзина")],
-            [KeyboardButton(text="☕️ Кафе и рестораны"), KeyboardButton(text="✍️ Отзывы")],
-            [KeyboardButton(text="ℹ️ О нас"), KeyboardButton(text="📞 Контакты")],
-            [KeyboardButton(text="🔄 Перезапуск (/start)"), KeyboardButton(text="🌐 Сменить язык")]
+            [KeyboardButton(text="☕️ Кафе и рестораны"), KeyboardButton(text="🤝 Стать дилером")],
+            [KeyboardButton(text="✍️ Отзывы"), KeyboardButton(text="ℹ️ О нас")],
+            [KeyboardButton(text="📞 Контакты"), KeyboardButton(text="🔄 Перезапуск (/start)")],
+            [KeyboardButton(text="🌐 Сменить язык")]
         ]
         if is_admin:
             kb.append([KeyboardButton(text="⚙️ Админ панель")])
     else:
         kb = [
             [KeyboardButton(text="🛍 Mahsulotlar"), KeyboardButton(text="🛒 Savatcha")],
-            [KeyboardButton(text="☕️ Kafe va restoranlar"), KeyboardButton(text="✍️ Fikr va mulohaza")],
-            [KeyboardButton(text="ℹ️ Biz haqimizda"), KeyboardButton(text="📞 Bog'lanish")],
-            [KeyboardButton(text="🔄 Qayta boshlash (/start)"), KeyboardButton(text="🌐 Tilni o'zgartirish")]
+            [KeyboardButton(text="☕️ Kafe va restoranlar"), KeyboardButton(text="🤝 Diler bo'lish")],
+            [KeyboardButton(text="✍️ Fikr va mulohaza"), KeyboardButton(text="ℹ️ Biz haqimizda")],
+            [KeyboardButton(text="📞 Bog'lanish"), KeyboardButton(text="🔄 Qayta boshlash (/start)")],
+            [KeyboardButton(text="🌐 Tilni o'zgartirish")]
         ]
         if is_admin:
             kb.append([KeyboardButton(text="⚙️ Admin Panel")])
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 
+# Skrinshotdagi aniq 6 ta tugma va Asosiy menyu bilan admin panel klaviaturasi
 def admin_menu(lang="uz"):
     if lang == "ru":
         return ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="➕ Добавить товар"), KeyboardButton(text="❌ Очистить фото")],
-                [KeyboardButton(text="📋 Список товаров"), KeyboardButton(text="🔙 Главное меню")],
+                [KeyboardButton(text="➕ Добавить товар"), KeyboardButton(text="✏️ Редактировать товар")],
+                [KeyboardButton(text="❌ Удалить товар"), KeyboardButton(text="📋 Список товаров")],
+                [KeyboardButton(text="👥 Заявки дилеров"), KeyboardButton(text="📮 Просмотр отзывов")],
+                [KeyboardButton(text="🔙 Главное меню")],
             ],
             resize_keyboard=True,
         )
     else:
         return ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="➕ Mahsulot qo'shish"), KeyboardButton(text="❌ Rasmini tozalash")],
-                [KeyboardButton(text="📋 Mahsulotlar ro'yxati"), KeyboardButton(text="🔙 Asosiy menyu")],
+                [KeyboardButton(text="➕ Mahsulot qo'shish"), KeyboardButton(text="✏️ Mahsulotni tahrirlash")],
+                [KeyboardButton(text="❌ Mahsulotni o'chirish"), KeyboardButton(text="📋 Mahsulotlar ro'yxati")],
+                [KeyboardButton(text="👥 Dillerlar arizalari"), KeyboardButton(text="📮 Fikr-mulohazalarni ko'rish")],
+                [KeyboardButton(text="🔙 Asosiy menyu")],
             ],
             resize_keyboard=True,
         )
@@ -286,8 +314,86 @@ async def about_us(message: Message):
 @router.message(F.text.in_(["📞 Bog'lanish", "📞 Контакты"]))
 async def contact_us(message: Message):
     lang = get_user_lang(message.from_user.id)
-    text = "📞 Murojaat uchun:\n\n👤 Telegram: @um1daxon3339\n📱 Telefon: +998937413339" if lang == "uz" else "📞 Контакты:\n\n👤 Telegram: @um1daxon3339\n📱 Телефон: +998937413339"
+    text = "📞 Murojaat uchun:\n\n👤 Telegram: @um1daxon3339\n📱 Телефон: +998937413339" if lang == "uz" else "📞 Контакты:\n\n👤 Telegram: @um1daxon3339\n📱 Телефон: +998937413339"
     await message.answer(text)
+
+
+# --- DILER BO'LISH (Foydalanuvchi uchun) ---
+@router.message(F.text.in_(["🤝 Diler bo'lish", "🤝 Стать дилером"]))
+async def become_dealer(message: Message, state: FSMContext):
+    lang = get_user_lang(message.from_user.id)
+    cancel = "🔙 Bekor qilish" if lang == "uz" else "🔙 Отмена"
+    kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=cancel)]], resize_keyboard=True)
+    await message.answer("Diler bo'lish uchun to'liq F.I.Sh. kiriting:" if lang == "uz" else "Введите ваше Ф.И.О.:", reply_markup=kb)
+    await state.set_state(DealerRegState.full_name)
+
+
+@router.message(DealerRegState.full_name)
+async def dealer_fullname(message: Message, state: FSMContext):
+    if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
+        await back_to_main(message, state)
+        return
+    await state.update_data(full_name=message.text)
+    lang = get_user_lang(message.from_user.id)
+    await message.answer("Telefon raqamingizni yuboring (masalan: +998901234567):" if lang == "uz" else "Введите номер телефона:")
+    await state.set_state(DealerRegState.phone)
+
+
+@router.message(DealerRegState.phone)
+async def dealer_phone(message: Message, state: FSMContext):
+    if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
+        await back_to_main(message, state)
+        return
+    data = await state.get_data()
+    user_id = message.from_user.id
+    full_name = data.get("full_name")
+    phone = message.text
+
+    cursor.execute("INSERT OR REPLACE INTO dealers (user_id, full_name, phone, status) VALUES (?, ?, ?, ?)", (user_id, full_name, phone, "pending"))
+    conn.commit()
+    await state.clear()
+    
+    lang = get_user_lang(user_id)
+    await message.answer("✅ Arizangiz qabul qilindi! Tez orada menejerlarimiz siz bilan bog'lanishadi." if lang == "uz" else "✅ Заявка принята!", reply_markup=main_menu(lang, user_id in ADMIN_IDS))
+    
+    # Adinlarga xabar berish
+    for admin_id in ADMIN_IDS:
+        try:
+            await bot.send_message(admin_id, f"🚨 **Yangi diler arizasi!**\n\n👤 F.I.Sh: {full_name}\n📞 Tel: {phone}\n🆔 ID: {user_id}", parse_mode="Markdown")
+        except Exception:
+            pass
+
+
+# --- FIKR VA MULOHAZA ---
+@router.message(F.text.in_(["✍️ Fikr va mulohaza", "✍️ Отзывы"]))
+async def feedback_start(message: Message, state: FSMContext):
+    lang = get_user_lang(message.from_user.id)
+    cancel = "🔙 Bekor qilish" if lang == "uz" else "🔙 Отмена"
+    kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=cancel)]], resize_keyboard=True)
+    await message.answer("Taklif, shikoyat yoki fikringizni yozib yuboring:" if lang == "uz" else "Напишите свой отзыв:", reply_markup=kb)
+    await state.set_state(FeedbackState.text)
+
+
+@router.message(FeedbackState.text)
+async def feedback_finish(message: Message, state: FSMContext):
+    if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
+        await back_to_main(message, state)
+        return
+    
+    user_id = message.from_user.id
+    text = message.text
+    cursor.execute("INSERT INTO feedback (user_id, full_name, text) VALUES (?, ?, ?)", (user_id, message.from_user.full_name, text))
+    conn.commit()
+    await state.clear()
+    
+    lang = get_user_lang(user_id)
+    await message.answer("Rahmat! Fikringiz adminga yuborildi. 📝" if lang == "uz" else "Спасибо!", reply_markup=main_menu(lang, user_id in ADMIN_IDS))
+    
+    for admin_id in ADMIN_IDS:
+        try:
+            await bot.send_message(admin_id, f"📝 **Yangi fikr/mulohaza:**\n\nKimdan: {message.from_user.full_name}\nMatn: {text}", parse_mode="Markdown")
+        except Exception:
+            pass
 
 
 # --- ADMIN PANEL ---
@@ -298,13 +404,14 @@ async def admin_panel(message: Message):
         await message.answer("Admin panel:", reply_markup=admin_menu(lang))
 
 
+# 1. Mahsulot qo'shish
 @router.message(F.text.in_(["➕ Mahsulot qo'shish", "➕ Добавить товар"]))
 async def add_product_start(message: Message, state: FSMContext):
     if message.from_user.id in ADMIN_IDS:
         lang = get_user_lang(message.from_user.id)
         cancel = "🔙 Bekor qilish" if lang == "uz" else "🔙 Отмена"
         kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=cancel)]], resize_keyboard=True)
-        await message.answer("Iltimos, yangi mahsulot **rasmini** yuboring:" if lang == "uz" else "Пожалуйста, отправьте **фото** товара:", reply_markup=kb)
+        await message.answer("Yangi mahsulot **rasmini** yuboring (yoki rasm bo'lmasa skip deb yozing):" if lang == "uz" else "Отправьте фото товара:", reply_markup=kb)
         await state.set_state(AddProductState.media)
 
 
@@ -312,66 +419,208 @@ async def add_product_start(message: Message, state: FSMContext):
 async def add_product_photo(message: Message, state: FSMContext):
     photo_id = message.photo[-1].file_id
     await state.update_data(media_id=photo_id)
-    lang = get_user_lang(message.from_user.id)
-    await message.answer("Mahsulot **Artikulini** yuboring:" if lang == "uz" else "Введите артикул товара:")
-    await state.set_state(AddProductState.info)
+    await message.answer("Mahsulot **Artikulini** (ID raqamini) kiriting:")
+    await state.set_state(AddProductState.article)
 
 
-@router.message(AddProductState.info)
-async def add_product_finish(message: Message, state: FSMContext):
+@router.message(AddProductState.media)
+async def add_product_no_photo(message: Message, state: FSMContext):
+    if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
+        await back_to_main(message, state)
+        return
+    await state.update_data(media_id="")
+    await message.answer("Mahsulot **Artikulini** (ID raqamini) kiriting:")
+    await state.set_state(AddProductState.article)
+
+
+@router.message(AddProductState.article)
+async def add_product_article(message: Message, state: FSMContext):
+    if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
+        await back_to_main(message, state)
+        return
+    await state.update_data(article=message.text.strip())
+    await message.answer("Mahsulot **nomini** kiriting:")
+    await state.set_state(AddProductState.name)
+
+
+@router.message(AddProductState.name)
+async def add_product_name(message: Message, state: FSMContext):
+    if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
+        await back_to_main(message, state)
+        return
+    await state.update_data(name=message.text.strip())
+    await message.answer("Kategoriyasini yozing (masalan: soap, degreaser, homeclean, bathroom, laundry):")
+    await state.set_state(AddProductState.category)
+
+
+@router.message(AddProductState.category)
+async def add_product_category(message: Message, state: FSMContext):
+    if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
+        await back_to_main(message, state)
+        return
+    await state.update_data(category=message.text.strip())
+    await message.answer("Hajmini yozing (masalan: 500 ml, 1000 ml, 5200 ml):")
+    await state.set_state(AddProductState.volume)
+
+
+@router.message(AddProductState.volume)
+async def add_product_volume(message: Message, state: FSMContext):
+    if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
+        await back_to_main(message, state)
+        return
+    await state.update_data(volume=message.text.strip())
+    await message.answer("Narxini kiriting (faqat raqam bilan, masalan: 45000):")
+    await state.set_state(AddProductState.price)
+
+
+@router.message(AddProductState.price)
+async def add_product_price(message: Message, state: FSMContext):
+    if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
+        await back_to_main(message, state)
+        return
+    try:
+        price = float(message.text.strip())
+        await state.update_data(price=price)
+        await message.answer("Mahsulot haqida qisqacha tavsif yozing:")
+        await state.set_state(AddProductState.description)
+    except ValueError:
+        await message.answer("Narx faqat raqamlardan iborat bo'lsin! Qaytadan kiriting:")
+
+
+@router.message(AddProductState.description)
+async def add_product_save(message: Message, state: FSMContext):
+    if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
+        await back_to_main(message, state)
+        return
+    
+    data = await state.get_data()
+    artikul = data.get("article")
+    name = data.get("name")
+    category = data.get("category")
+    volume = data.get("volume")
+    price = data.get("price")
+    desc = message.text.strip()
+    media_id = data.get("media_id")
+
+    cursor.execute(
+        """
+        INSERT OR REPLACE INTO products (id, name, category, volume, price, description, media_id, media_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (artikul, name, category, volume, price, desc, media_id, "")
+    )
+    conn.commit()
+    await state.clear()
+    
     lang = get_user_lang(message.from_user.id)
+    await message.answer(f"✅ '{name}' muvaffaqiyatli qo'shildi! Artikul: {artikul}", reply_markup=admin_menu(lang))
+
+
+# 2. Mahsulotni tahrirlash
+@router.message(F.text.in_(["✏️ Mahsulotni tahrirlash", "✏️ Редактировать товар"]))
+async def edit_product_start(message: Message, state: FSMContext):
+    if message.from_user.id in ADMIN_IDS:
+        lang = get_user_lang(message.from_user.id)
+        cancel = "🔙 Bekor qilish" if lang == "uz" else "🔙 Отмена"
+        kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=cancel)]], resize_keyboard=True)
+        await message.answer("Tahrirlamoqchi bo'lgan mahsulot **Artikulini** kiriting:", reply_markup=kb)
+        await state.set_state(EditProductState.article)
+
+
+@router.message(EditProductState.article)
+async def edit_product_get_artikul(message: Message, state: FSMContext):
     if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
         await back_to_main(message, state)
         return
     
     artikul = message.text.strip()
-    data = await state.get_data()
-    media_id = data.get("media_id")
-
-    cursor.execute("SELECT name FROM products WHERE id = ?", (artikul,))
+    cursor.execute("SELECT id, name, price FROM products WHERE id = ?", (artikul,))
     prod = cursor.fetchone()
     if not prod:
         await message.answer("Bunday artikulli mahsulot topilmadi! Qaytadan to'g'ri artikul kiriting:")
         return
 
-    cursor.execute("UPDATE products SET media_id = ? WHERE id = ?", (media_id, artikul))
+    await state.update_data(article=artikul)
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💰 Narxini o'zgartirish", callback_data="edit_price")],
+            [InlineKeyboardButton(text="📝 Nomini o'zgartirish", callback_data="edit_name")],
+            [InlineKeyboardButton(text="💧 Hajmini o'zgartirish", callback_data="edit_volume")],
+        ]
+    )
+    await message.answer(f"Mahsulot topildi: **{prod[1]}** ({int(prod[2])} so'm)\nNimani o'zgartirmoqchisiz?", reply_markup=kb, parse_mode="Markdown")
+
+
+@router.callback_query(F.data.startswith("edit_"))
+async def edit_product_choice(callback: CallbackQuery, state: FSMContext):
+    action = callback.data.split("_")[1]
+    await state.update_data(field=action)
+    await callback.message.answer("Yangi qiymatni kiriting:")
+    await state.set_state(EditProductState.new_value)
+    await callback.answer()
+
+
+@router.message(EditProductState.new_value)
+async def edit_product_save(message: Message, state: FSMContext):
+    if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
+        await back_to_main(message, state)
+        return
+    
+    data = await state.get_data()
+    artikul = data.get("article")
+    field = data.get("field")
+    new_val = message.text.strip()
+
+    if field == "price":
+        try:
+            new_val = float(new_val)
+            cursor.execute("UPDATE products SET price = ? WHERE id = ?", (new_val, artikul))
+        except ValueError:
+            await message.answer("Narx faqat raqam bo'lishi kerak!")
+            return
+    elif field == "name":
+        cursor.execute("UPDATE products SET name = ? WHERE id = ?", (new_val, artikul))
+    elif field == "volume":
+        cursor.execute("UPDATE products SET volume = ? WHERE id = ?", (new_val, artikul))
+
     conn.commit()
     await state.clear()
-    await message.answer(f"✅ '{prod[0]}' uchun rasm muvaffaqiyatli qo'shildi!", reply_markup=admin_menu(lang))
+    lang = get_user_lang(message.from_user.id)
+    await message.answer("✅ Mahsulot muvaffaqiyatli tahrirlandi!", reply_markup=admin_menu(lang))
 
 
-# --- MAHSULOT RASMINI TOZALASH ---
-@router.message(F.text.in_(["❌ Rasmini tozalash", "❌ Очистить фото"]))
-async def start_delete_product(message: Message, state: FSMContext):
+# 3. Mahsulotni o'chirish
+@router.message(F.text.in_(["❌ Mahsulotni o'chirish", "❌ Удалить товар"]))
+async def delete_product_start(message: Message, state: FSMContext):
     if message.from_user.id in ADMIN_IDS:
         lang = get_user_lang(message.from_user.id)
         cancel = "🔙 Bekor qilish" if lang == "uz" else "🔙 Отмена"
         kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=cancel)]], resize_keyboard=True)
-        await message.answer("Rasmini o'chirmoqchi (tozalamoqchi) bo'lgan mahsulot **Artikulini** yuboring:" if lang == "uz" else "Введите артикул товара для очистки фото:", reply_markup=kb)
+        await message.answer("O'chirmoqchi bo'lgan mahsulot **Artikulini** kiriting:", reply_markup=kb)
         await state.set_state(DeleteProductState.article)
 
 
 @router.message(DeleteProductState.article)
-async def process_delete_product(message: Message, state: FSMContext):
+async def delete_product_finish(message: Message, state: FSMContext):
     if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
-        await state.clear()
-        await message.answer("Bekor qilindi.", reply_markup=admin_menu(get_user_lang(message.from_user.id)))
+        await back_to_main(message, state)
         return
-
+    
     artikul = message.text.strip()
-    cursor.execute("SELECT id, name FROM products WHERE id = ?", (artikul,))
+    cursor.execute("SELECT name FROM products WHERE id = ?", (artikul,))
     prod = cursor.fetchone()
     if not prod:
-        await message.answer("Bunday artikulli mahsulot topilmadi! Qaytadan tekshirib kiriting:")
+        await message.answer("Bunday artikulli mahsulot topilmadi! Tekshirib qaytadan kiriting:")
         return
 
-    cursor.execute("UPDATE products SET media_id = '' WHERE id = ?", (artikul,))
+    cursor.execute("DELETE FROM products WHERE id = ?", (artikul,))
     conn.commit()
     await state.clear()
-    await message.answer(f"✅ '{prod[1]}' ning rasmi tozalandi (mahsulot bazada saqlanib qoldi)!", reply_markup=admin_menu(get_user_lang(message.from_user.id)))
+    lang = get_user_lang(message.from_user.id)
+    await message.answer(f"✅ '{prod[0]}' bazadan butunlay o'chirildi!", reply_markup=admin_menu(lang))
 
 
-# --- MAHSULOTLAR RO'YXATI (2 QISMLI: ARTIKUL YOKI EXCEL) ---
+# 4. Mahsulotlar ro'yxati (2 qismli: matnli artikul/nom yoki Excel fayl)
 @router.message(F.text.in_(["📋 Mahsulotlar ro'yxati", "📋 Список товаров"]))
 async def show_products_list_menu(message: Message):
     if message.from_user.id in ADMIN_IDS:
@@ -416,13 +665,76 @@ async def send_products_excel(callback: CallbackQuery):
         file_path = "Prais_Viridi.xlsx"
         df.to_excel(file_path, index=False)
         
-        from aiogram.types import FSInputFile
         doc = FSInputFile(file_path)
         await callback.message.answer_document(doc, caption="📊 Joriy mahsulotlar Excel fayli")
         await callback.answer()
 
 
-# --- MAHSULOTLAR KATEGORIYALARI ---
+# 5. Dillerlar arizalari
+@router.message(F.text.in_(["👥 Dillerlar arizalari", "👥 Заявки дилеров"]))
+async def show_dealers_requests(message: Message):
+    if message.from_user.id in ADMIN_IDS:
+        cursor.execute("SELECT user_id, full_name, phone, status FROM dealers WHERE status = 'pending'")
+        dealers = cursor.fetchall()
+        if not dealers:
+            await message.answer("Hozircha yangi dilerlik arizalari yo'q.")
+            return
+
+        for d in dealers:
+            text = f"👤 **Diler arizasi:**\n\nF.I.Sh: {d[1]}\n📞 Tel: {d[2]}\n🆔 ID: {d[0]}"
+            kb = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"dealer_accept_{d[0]}"),
+                        InlineKeyboardButton(text="❌ Rad etish", callback_data=f"dealer_reject_{d[0]}")
+                    ]
+                ]
+            )
+            await message.answer(text, reply_markup=kb, parse_mode="Markdown")
+
+
+@router.callback_query(F.data.startswith("dealer_"))
+async def process_dealer_action(callback: CallbackQuery):
+    if callback.from_user.id in ADMIN_IDS:
+        parts = callback.data.split("_")
+        action, dealer_id = parts[1], int(parts[2])
+
+        if action == "accept":
+            cursor.execute("UPDATE dealers SET status = 'accepted' WHERE user_id = ?", (dealer_id,))
+            conn.commit()
+            await callback.message.edit_text("✅ Diler tasdiqlandi!")
+            try:
+                await bot.send_message(dealer_id, "🎉 Tabriklaymiz! Sizning dilerlik arizangiz tasdiqlandi.")
+            except Exception:
+                pass
+        else:
+            cursor.execute("UPDATE dealers SET status = 'rejected' WHERE user_id = ?", (dealer_id,))
+            conn.commit()
+            await callback.message.edit_text("❌ Diler arizasi rad etildi.")
+            try:
+                await bot.send_message(dealer_id, "❌ Afsuski, dilerlik arizangiz rad etildi.")
+            except Exception:
+                pass
+        await callback.answer()
+
+
+# 6. Fikr-mulohazalarni ko'rish
+@router.message(F.text.in_(["📮 Fikr-mulohazalarni ko'rish", "📮 Просмотр отзывов"]))
+async def show_feedbacks(message: Message):
+    if message.from_user.id in ADMIN_IDS:
+        cursor.execute("SELECT full_name, text FROM feedback ORDER BY id DESC LIMIT 10")
+        feedbacks = cursor.fetchall()
+        if not feedbacks:
+            await message.answer("Hozircha fikr-mulohazalar yo'q.")
+            return
+
+        text = "📮 **So'nggi fikr va mulohazalar:**\n\n"
+        for f in feedbacks:
+            text += f"👤 {f[0]}:\n💬 {f[1]}\n-------------------\n"
+        await message.answer(text, parse_mode="Markdown")
+
+
+# --- MAHSULOTLAR KATEGORIYALARI (Foydalanuvchi uchun) ---
 @router.message(F.text.in_(["🛍 Mahsulotlar", "🛍 Товары"]))
 async def show_categories(message: Message):
     lang = get_user_lang(message.from_user.id)
@@ -470,7 +782,7 @@ async def back_to_cats(callback: CallbackQuery):
     await callback.message.edit_text("Kategoriyani tanlang:", reply_markup=kb)
 
 
-# --- MAHSULOT TAFSILOTI ---
+# --- MAHSULOT TAFSILOTI VA SAVATCHA ---
 @router.callback_query(F.data.startswith("prod_"))
 async def show_product_detail(callback: CallbackQuery):
     parts = callback.data.split("_")
@@ -569,7 +881,7 @@ async def main():
     dp.include_router(router)
     await bot.delete_webhook(drop_pending_updates=True)
     await web_server()
-    print("Bot ishga tushdi va 2 qismli ro'yxat qo'shildi!")
+    print("Bot ishga tushdi va barcha 6 ta admin bo'limi to'liq tiklandi!")
     await dp.start_polling(bot)
 
 
