@@ -80,19 +80,68 @@ CREATE TABLE IF NOT EXISTS feedback (
 conn.commit()
 
 
-# --- MAHSULOTLARNI KODNING O'ZIDAN KATEGORIYALarga BO'LIB BAZAGA YOZISH ---
+# --- BARCHA 46 TA MAHSULOTNI ARTIKULI BILAN BAZAGA YOZISH ---
 def init_default_products():
     products_list = [
-        # (Artikul, Nomi, Kategoriya, Hajmi, Narxi, Tavsif)
+        # Suyuq sovunlar / Krem-sovunlar (soap)
         ("140105", "VIRIS Olchali tort", "soap", "500 ml", 30000, "paxta urug'i yog'li gipoallergen suyuq krem-sovun 0+"),
         ("110110", "VIRida Ertaknamo Bali", "soap", "1000 ml", 45000, "4 xil gialuronli antibakterial suyuq sovun, 0+, gipoallergen, kokos yog'i bilan"),
         ("110210", "VIRida Afrika xazinalari", "soap", "1000 ml", 45000, "4 xil gialuronli antibakterial suyuq sovun, 0+, gipoallergen, argan yog'i bilan"),
         ("110310", "VIRida Islandiya buloqlari", "soap", "1000 ml", 45000, "4 xil gialuronli antibakterial suyuq sovun, 0+, gipoallergen, paxta urug'i yog'i bilan"),
-        ("110410", "VIRida Fudzi afsonalari", "soap", "1000 ml", 45000, "4 xil gialuronli antibakterial suyuq krem-sovun, 0+, gipoallergen, paxta urug'i yog'i bilan")
+        ("110410", "VIRida Fudzi afsonalari", "soap", "1000 ml", 45000, "4 xil gialuronli antibakterial suyuq krem-sovun, 0+, gipoallergen, paxta urug'i yog'i bilan"),
+        ("110152", "VIRida Ertaknamo Bali", "soap", "5200 ml", 125000, "4 xil gialuronli antibakterial suyuq sovun, 0+, gipoallergen, kokos yog'i bilan"),
+        ("110252", "VIRida Afrika xazinalari", "soap", "5200 ml", 125000, "4 xil gialuronli antibakterial suyuq sovun, 0+, gipoallergen, argan yog'i bilan"),
+        ("110352", "VIRida Islandiya buloqlari", "soap", "5200 ml", 125000, "4 xil gialuronli antibakterial suyuq sovun, 0+, gipoallergen, paxta urug'i yog'i bilan"),
+        ("110452", "VIRida Fudzi afsonalari", "soap", "5200 ml", 130000, "4 xil gialuronli antibakterial suyuq krem-sovun, 0+, gipoallergen, paxta urug'i yog'i bilan"),
+
+        # Oshxona uchun (degreaser / kitchen)
+        ("210105", "VIRjet Antijir", "degreaser", "500 ml", 40000, "Konsentrlangan oshxona vositasi yog' va kuyiklarga qarshi, hidsiz"),
+        ("280505", "Viris Yog'ga yo'q!", "degreaser", "500 ml", 35000, "Oshxona vositasi yog' va kuyiklarga qarshi, hidsiz"),
+        ("260110", "VIRma idish yuvish geli", "degreaser", "1000 ml", 50000, "Gialuron kislotali konsentrlangan gel, meva va bolalar idishlari uchun"),
+        ("260152", "VIRma idish yuvish geli", "degreaser", "5200 ml", 180000, "Gialuron kislotali konsentrlangan gel, meva va bolalar idishlari uchun"),
+        ("260452", "VIRma RETRO COLLECTION", "degreaser", "5200 ml", 130000, "Moychechak ekstraktli konsentrlangan idish yuvish geli"),
+        ("260352", "VIRma Tog' o'tlari", "degreaser", "5200 ml", 130000, "Tog' o'tlari ekstraktli konsentrlangan idish yuvish geli"),
+        ("260552", "Virma - Pamelo", "degreaser", "5200 ml", 130000, "Pamelo xushbo'y konsentrlangan idish yuvish geli"),
+
+        # Uy tozalash va pol yuvish uchun (homeclean)
+        ("210205", "VIRjet Universal", "homeclean", "500 ml", 40000, "Mebellar va qattiq yuzalar uchun universal dog' tozalovchi"),
+        ("280605", "Viris Hammasi toza!", "homeclean", "500 ml", 35000, "Mebellar va yuzalar uchun universal dog' tozalovchi"),
+        ("240110", "Viround liliya va gortenziya", "homeclean", "1000 ml", 40000, "Pol yuvish uchun konsentrlangan antibakterial vosita"),
+        ("240210", "VIRound Life planet", "homeclean", "1000 ml", 40000, "Bergamot va jasminli pol yuvish vositasi"),
+        ("240310", "Viround Moonlight", "homeclean", "1000 ml", 40000, "Parfyumlangan konsentrlangan pol yuvish vositasi"),
+        ("240510", "Viround Pet Friendly", "homeclean", "1000 ml", 40000, "Uy hayvonlari hidini yo'qotuvchi pol yuvish vositasi"),
+        ("240152", "Viround liliya va gortenziya", "homeclean", "5200 ml", 110000, "Pol yuvish uchun konsentrlangan antibakterial vosita (katta hajm)"),
+        ("240252", "VIRound Life planet", "homeclean", "5200 ml", 110000, "Bergamot va jasminli pol yuvish vositasi"),
+        ("240352", "Viround Moonlight", "homeclean", "5200 ml", 120000, "Parfyumlangan konsentrlangan pol yuvish vositasi"),
+        ("240552", "Viround Pet Friendly", "homeclean", "5200 ml", 120000, "Uy hayvonlari hidini yo'qotuvchi pol yuvish vositasi"),
+
+        # Vanna va tualet uchun (bathroom)
+        ("220105", "VIRsant kislotali vosita", "bathroom", "500 ml", 40000, "Tualet va vanna uchun zang va qatlam tozalovchi"),
+        ("280105", "Viris To'xtat na'lot!", "bathroom", "500 ml", 35000, "Zang va qatlam tozalovchi"),
+        ("220175", "VIRsant kislotali vosita", "bathroom", "750 ml", 45000, "Antibakterial tualet va vanna tozalovchi"),
+        ("220275", "VIRsant Ultra", "bathroom", "750 ml", 42000, "Yuqori samarali kislotali tualet va vanna tozalovchi"),
+        ("230175", "VIRet", "bathroom", "750 ml", 32000, "Antibakterial tualet va vanna tozalovchi vosita"),
+
+        # Kir yuvish uchun (laundry)
+        ("510112", "VIRIS gel Universal", "laundry", "1200 ml", 55000, "Oq va rangli kir yuvish uchun konsentrlangan gel, 35 yuvish"),
+        ("520212", "VIRIS konditsioner Harmony", "laundry", "1200 ml", 50000, "Harmony konsentrlangan mato konditsioneri, 30 yuvish"),
+        ("510312", "VIRis Color gel", "laundry", "1200 ml", 55000, "Rangli kirlar uchun konsentrlangan gel, 35 yuvish"),
+        ("520312", "VIRis Greenly konditsioner", "laundry", "1200 ml", 50000, "Greenly konsentrlangan mato konditsioneri, 30 yuvish"),
+        ("510712", "VIRis White gel", "laundry", "1200 ml", 55000, "Oq kirlar uchun konsentrlangan gel, 35 yuvish"),
+        ("520712", "VIRis Wonder konditsioner", "laundry", "1200 ml", 50000, "Wonder konsentrlangan mato konditsioneri, 30 yuvish"),
+        ("510812", "VIRis Delicate gel", "laundry", "1200 ml", 55000, "Nozik kirlar uchun konsentrlangan gel, 35 yuvish"),
+        ("520812", "VIRis Amaze konditsioner", "laundry", "1200 ml", 50000, "Amaze konsentrlangan mato konditsioneri, 30 yuvish"),
+        ("510512", "VIRis Black gel", "laundry", "1200 ml", 55000, "Qora kirlar uchun konsentrlangan gel, 35 yuvish"),
+        ("520512", "VIRis Passion konditsioner", "laundry", "1200 ml", 50000, "Qora kirlar uchun mato konditsioneri, 30 yuvish"),
+        ("510352", "VIRis Color gel", "laundry", "5200 ml", 140000, "Rangli kirlar uchun konsentrlangan gel, 150 yuvish"),
+        ("520352", "VIRis Greenly konditsioner", "laundry", "5200 ml", 135000, "Greenly mato konditsioneri, 130 yuvish"),
+        ("510152", "VIRIS gel Universal", "laundry", "5200 ml", 140000, "Oq va rangli kir yuvish geli, 150 yuvish"),
+        ("520252", "VIRIS konditsioner Harmony", "laundry", "5200 ml", 135000, "Harmony mato konditsioneri, 130 yuvish"),
+        ("350605", "VIRlan PRO S6 Triqer", "laundry", "500 ml", 100000, "Skotch, graffiti va saqich dog'larini ketkazuvchi professional vosita")
     ]
     
     for art, name, cat, vol, price, desc in products_list:
-        cursor.execute("SELECT id FROM products WHERE name = ?", (name,))
+        cursor.execute("SELECT id FROM products WHERE name = ? AND volume = ?", (name, vol))
         if not cursor.fetchone():
             cursor.execute(
                 """
@@ -314,7 +363,7 @@ async def show_products_by_cat(callback: CallbackQuery):
         await callback.message.edit_text("Bu kategoriyada mahsulot yo'q." if lang == "uz" else "В этой категории нет товаров.", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=back_text, callback_data="back_cats")]]))
         return
 
-    kb = [[InlineKeyboardButton(text=f"{p[1]} — {p[2]} so'm", callback_data=f"prod_{p[0]}_1")] for p in products]
+    kb = [[InlineKeyboardButton(text=f"{p[1]} — {int(p[2])} so'm", callback_data=f"prod_{p[0]}_1")] for p in products]
     kb.append([InlineKeyboardButton(text=back_text, callback_data="back_cats")])
     await callback.message.edit_text("Mahsulotlar:" if lang == "uz" else "Товары:", reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
 
@@ -344,8 +393,9 @@ async def show_product_detail(callback: CallbackQuery):
     p = cursor.fetchone()
 
     if p:
-        total_price = p[2] * qty
-        text = f"📦 **{p[0]}**\n💧 **Hajmi:** {p[1]}\n\n💰 Narxi: {p[2]} so'm\n🔢 Miqdori: {qty} ta\n💵 Jami: {total_price} so'm\n\n📝 Tavsif: {p[3]}"
+        price_int = int(p[2])
+        total_price = price_int * qty
+        text = f"📦 **{p[0]}**\n💧 **Hajmi:** {p[1]}\n\n💰 Narxi: {price_int} so'm\n🔢 Miqdori: {qty} ta\n💵 Jami: {total_price} so'm\n\n📝 Tavsif: {p[3]}"
         kb = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
@@ -392,9 +442,9 @@ async def show_cart(message: Message):
     text = "🛒 **Sizning savatchangiz:**\n\n"
     grand_total = 0
     for name, qty, price, pid in items:
-        summa = qty * price
+        summa = int(qty * price)
         grand_total += summa
-        text += f"• {name} — {qty} x {price} = {summa} so'm\n"
+        text += f"• {name} — {qty} x {int(price)} = {summa} so'm\n"
     text += f"\n💵 **Jami:** {grand_total} so'm"
     
     kb = InlineKeyboardMarkup(
@@ -424,7 +474,7 @@ async def start_delete_product(message: Message, state: FSMContext):
             return
         text = "O'chirmoqchi bo'lgan mahsulot **ID raqamini** yozing:\n\n"
         for p in products:
-            text += f"ID: {p[0]} | {p[1]} — {p[2]} so'm\n"
+            text += f"ID: {p[0]} | {p[1]} — {int(p[2])} so'm\n"
         await message.answer(text, reply_markup=ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="🔙 Bekor qilish")]], resize_keyboard=True), parse_mode="Markdown")
         await state.set_state(DeleteProductState.product_id)
 
@@ -453,18 +503,28 @@ async def process_delete_product(message: Message, state: FSMContext):
     await message.answer(f"✅ '{prod[1]}' o'chirildi!", reply_markup=admin_menu(get_user_lang(message.from_user.id)))
 
 
+# --- MAHSULOTLAR RO'YXATI (FAQAT ADMIN UCHUN ARTIKUL BILAN) ---
 @router.message(F.text.in_(["📋 Mahsulotlar ro'yxati", "📋 Список товаров"]))
 async def show_products_list(message: Message):
     if message.from_user.id in ADMIN_IDS:
-        cursor.execute("SELECT id, name, price FROM products")
+        cursor.execute("SELECT id, article, name, volume, price FROM products")
         products = cursor.fetchall()
         if not products:
             await message.answer("Bazada mahsulotlar yo'q.")
             return
-        text = "📋 **Barcha mahsulotlar:**\n\n"
+        
+        text = "📋 **Barcha mahsulotlar ro'yxati (Artikullari bilan):**\n\n"
         for p in products:
-            text += f"ID: {p[0]} | {p[1]} — {p[2]} so'm\n"
-        await message.answer(text, parse_mode="Markdown")
+            art_str = f"Artikul: {p[1]} | " if p[1] else ""
+            text += f"ID: {p[0]} | {art_str}{p[2]} ({p[3]}) — {int(p[4])} so'm\n"
+            
+            # Xabar uzunligi Telegram limitidan oshib ketmasligi uchun qismlarga bo'lib yuboramiz
+            if len(text) > 3500:
+                await message.answer(text, parse_mode="Markdown")
+                text = ""
+        
+        if text:
+            await message.answer(text, parse_mode="Markdown")
 
 
 PORT = int(os.environ.get("PORT", 10000))
@@ -486,7 +546,7 @@ async def main():
     dp.include_router(router)
     await bot.delete_webhook(drop_pending_updates=True)
     await web_server()
-    print("Bot muvaffaqiyatli ishga tushdi!")
+    print("Bot ishga tushdi va barcha mahsulotlar yuklandi!")
     await dp.start_polling(bot)
 
 
