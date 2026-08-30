@@ -22,12 +22,11 @@ ADMIN_IDS = [49557984, 2145398125]
 conn = sqlite3.connect("viridi_bot.db", check_same_thread=False)
 cursor = conn.cursor()
 
-# Bazalarni yaratish
+# Bazalarni yaratish (id sifatida article ishlatiladi)
 cursor.execute(
     """
 CREATE TABLE IF NOT EXISTS products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    article TEXT,
+    id TEXT PRIMARY KEY,
     name TEXT,
     category TEXT,
     volume TEXT,
@@ -61,7 +60,7 @@ cursor.execute(
     """
 CREATE TABLE IF NOT EXISTS cart (
     user_id INTEGER,
-    product_id INTEGER,
+    product_id TEXT,
     quantity INTEGER,
     PRIMARY KEY(user_id, product_id)
 )
@@ -103,7 +102,7 @@ def init_default_products():
         ("260352", "VIRma Tog' o'tlari", "degreaser", "5200 ml", 130000, "Tog' o'tlari ekstraktli konsentrlangan idish yuvish geli"),
         ("260552", "Virma - Pamelo", "degreaser", "5200 ml", 130000, "Pamelo xushbo'y konsentrlangan idish yuvish geli"),
 
-        # Uy tozalash va pol yuvish uchun (homeclean) — VIRlan PRO S6 shu yerga ko'chirildi
+        # Uy tozalash va pol yuvish uchun (homeclean)
         ("210205", "VIRjet Universal", "homeclean", "500 ml", 40000, "Mebellar va qattiq yuzalar uchun universal dog' tozalovchi"),
         ("280605", "Viris Hammasi toza!", "homeclean", "500 ml", 35000, "Mebellar va yuzalar uchun universal dog' tozalovchi"),
         ("240110", "Viround liliya va gortenziya", "homeclean", "1000 ml", 40000, "Pol yuvish uchun konsentrlangan antibakterial vosita"),
@@ -141,11 +140,11 @@ def init_default_products():
     ]
     
     for art, name, cat, vol, price, desc in products_list:
-        cursor.execute("SELECT id FROM products WHERE name = ? AND volume = ?", (name, vol))
+        cursor.execute("SELECT id FROM products WHERE id = ?", (art,))
         if not cursor.fetchone():
             cursor.execute(
                 """
-                INSERT INTO products (article, name, category, volume, price, description, media_type) 
+                INSERT INTO products (id, name, category, volume, price, description, media_type) 
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (art, name, cat, vol, price, desc, "")
@@ -166,15 +165,7 @@ class AddProductState(StatesGroup):
 
 
 class DeleteProductState(StatesGroup):
-    product_id = State()
-
-
-class CheckoutState(StatesGroup):
-    location = State()
-    confirm_location = State()
-    details = State()
-    phone = State()
-    payment = State()
+    article = State()
 
 
 def get_user_lang(user_id):
@@ -294,7 +285,7 @@ async def about_us(message: Message):
 @router.message(F.text.in_(["📞 Bog'lanish", "📞 Контакты"]))
 async def contact_us(message: Message):
     lang = get_user_lang(message.from_user.id)
-    text = "📞 Murojaat uchun:\n\n👤 Telegram: @um1daxon3339\n📱 Телефон: +998937413339" if lang == "uz" else "📞 Контакты:\n\n👤 Telegram: @um1daxon3339\n📱 Телефон: +998937413339"
+    text = "📞 Murojaat uchun:\n\n👤 Telegram: @um1daxon3339\n📱 Telefon: +998937413339" if lang == "uz" else "📞 Контакты:\n\n👤 Telegram: @um1daxon3339\n📱 Телефон: +998937413339"
     await message.answer(text)
 
 
@@ -321,7 +312,7 @@ async def add_product_photo(message: Message, state: FSMContext):
     photo_id = message.photo[-1].file_id
     await state.update_data(media_id=photo_id)
     lang = get_user_lang(message.from_user.id)
-    await message.answer("Mahsulot ID raqamini yuboring:" if lang == "uz" else "Введите ID товара:")
+    await message.answer("Mahsulot **Artikulini** yuboring:" if lang == "uz" else "Введите артикул товара:")
     await state.set_state(AddProductState.info)
 
 
@@ -332,21 +323,17 @@ async def add_product_finish(message: Message, state: FSMContext):
         await back_to_main(message, state)
         return
     
-    if not message.text.isdigit():
-        await message.answer("Iltimos, faqat raqam (ID) kiriting:")
-        return
-
-    prod_id = int(message.text)
+    artikul = message.text.strip()
     data = await state.get_data()
     media_id = data.get("media_id")
 
-    cursor.execute("SELECT name FROM products WHERE id = ?", (prod_id,))
+    cursor.execute("SELECT name FROM products WHERE id = ?", (artikul,))
     prod = cursor.fetchone()
     if not prod:
-        await message.answer("Bunday ID raqamli mahsulot topilmadi!")
+        await message.answer("Bunday artikulli mahsulot topilmadi! Qaytadan to'g'ri artikul kiriting:")
         return
 
-    cursor.execute("UPDATE products SET media_id = ? WHERE id = ?", (media_id, prod_id))
+    cursor.execute("UPDATE products SET media_id = ? WHERE id = ?", (media_id, artikul))
     conn.commit()
     await state.clear()
     await message.answer(f"✅ '{prod[0]}' uchun rasm muvaffaqiyatli qo'shildi!", reply_markup=admin_menu(lang))
@@ -356,38 +343,28 @@ async def add_product_finish(message: Message, state: FSMContext):
 @router.message(F.text.in_(["❌ Rasmini tozalash", "❌ Очистить фото"]))
 async def start_delete_product(message: Message, state: FSMContext):
     if message.from_user.id in ADMIN_IDS:
-        cursor.execute("SELECT id, article, name, volume, price FROM products")
-        products = cursor.fetchall()
-        if not products:
-            await message.answer("Mahsulotlar yo'q.")
-            return
-        text = "Rasmini o'chirmoqchi (tozalamoqchi) bo'lgan mahsulot **ID raqamini** yozing:\n\n"
-        for p in products:
-            art_str = f"[{p[1]}] " if p[1] else ""
-            text += f"ID: {p[0]} | {art_str}{p[2]} ({p[3]}) — {int(p[4])} so'm\n"
-        await message.answer(text, reply_markup=ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="🔙 Bekor qilish")]], resize_keyboard=True), parse_mode="Markdown")
-        await state.set_state(DeleteProductState.product_id)
+        lang = get_user_lang(message.from_user.id)
+        cancel = "🔙 Bekor qilish" if lang == "uz" else "🔙 Отмена"
+        kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=cancel)]], resize_keyboard=True)
+        await message.answer("Rasmini o'chirmoqchi (tozalamoqchi) bo'lgan mahsulot **Artikulini** yuboring:" if lang == "uz" else "Введите артикул товара для очистки фото:", reply_markup=kb)
+        await state.set_state(DeleteProductState.article)
 
 
-@router.message(DeleteProductState.product_id)
+@router.message(DeleteProductState.article)
 async def process_delete_product(message: Message, state: FSMContext):
     if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
         await state.clear()
         await message.answer("Bekor qilindi.", reply_markup=admin_menu(get_user_lang(message.from_user.id)))
         return
 
-    if not message.text.isdigit():
-        await message.answer("Iltimos, faqat raqam (ID) kiriting:")
-        return
-
-    prod_id = int(message.text)
-    cursor.execute("SELECT id, name FROM products WHERE id = ?", (prod_id,))
+    artikul = message.text.strip()
+    cursor.execute("SELECT id, name FROM products WHERE id = ?", (artikul,))
     prod = cursor.fetchone()
     if not prod:
-        await message.answer("Bunday ID raqamli mahsulot topilmadi:")
+        await message.answer("Bunday artikulli mahsulot topilmadi! Qaytadan tekshirib kiriting:")
         return
 
-    cursor.execute("UPDATE products SET media_id = '' WHERE id = ?", (prod_id,))
+    cursor.execute("UPDATE products SET media_id = '' WHERE id = ?", (artikul,))
     conn.commit()
     await state.clear()
     await message.answer(f"✅ '{prod[1]}' ning rasmi tozalandi (mahsulot bazada saqlanib qoldi)!", reply_markup=admin_menu(get_user_lang(message.from_user.id)))
@@ -445,7 +422,7 @@ async def back_to_cats(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("prod_"))
 async def show_product_detail(callback: CallbackQuery):
     parts = callback.data.split("_")
-    prod_id, qty = int(parts[1]), int(parts[2])
+    prod_id, qty = parts[1], int(parts[2])
 
     cursor.execute("SELECT name, volume, price, description, media_id FROM products WHERE id = ?", (prod_id,))
     p = cursor.fetchone()
@@ -484,7 +461,7 @@ async def noop_cb(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("addcart_"))
 async def add_to_cart(callback: CallbackQuery):
     parts = callback.data.split("_")
-    cursor.execute("INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?) ON CONFLICT(user_id, product_id) DO UPDATE SET quantity = ?", (callback.from_user.id, int(parts[1]), int(parts[2]), int(parts[2])))
+    cursor.execute("INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?) ON CONFLICT(user_id, product_id) DO UPDATE SET quantity = ?", (callback.from_user.id, parts[1], int(parts[2]), int(parts[2])))
     conn.commit()
     await callback.answer("Savatchaga qo'shildi! 🛒", show_alert=True)
 
@@ -525,7 +502,7 @@ async def clear_cart(callback: CallbackQuery):
 @router.message(F.text.in_(["📋 Mahsulotlar ro'yxati", "📋 Список товаров"]))
 async def show_products_list(message: Message):
     if message.from_user.id in ADMIN_IDS:
-        cursor.execute("SELECT id, article, name, volume, price FROM products")
+        cursor.execute("SELECT id, name, volume, price FROM products")
         products = cursor.fetchall()
         if not products:
             await message.answer("Bazada mahsulotlar yo'q.")
@@ -533,8 +510,7 @@ async def show_products_list(message: Message):
         
         text = "📋 **Barcha mahsulotlar ro'yxati (Artikullari bilan):**\n\n"
         for p in products:
-            art_str = f"Artikul: {p[1]} | " if p[1] else ""
-            text += f"ID: {p[0]} | {art_str}{p[2]} ({p[3]}) — {int(p[4])} so'm\n"
+            text += f"Artikul: {p[0]} | {p[1]} ({p[2]}) — {int(p[3])} so'm\n"
             
             if len(text) > 3500:
                 await message.answer(text, parse_mode="Markdown")
@@ -563,7 +539,7 @@ async def main():
     dp.include_router(router)
     await bot.delete_webhook(drop_pending_updates=True)
     await web_server()
-    print("Bot ishga tushdi va mahsulotlar joylashtirildi!")
+    print("Bot ishga tushdi va artikullar ID qilib belgilandi!")
     await dp.start_polling(bot)
 
 
