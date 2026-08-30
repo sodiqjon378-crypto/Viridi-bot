@@ -13,6 +13,7 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     KeyboardButton,
     Message,
+    ReplyArgumentError,
     ReplyKeyboardMarkup,
 )
 
@@ -370,6 +371,57 @@ async def process_delete_product(message: Message, state: FSMContext):
     await message.answer(f"✅ '{prod[1]}' ning rasmi tozalandi (mahsulot bazada saqlanib qoldi)!", reply_markup=admin_menu(get_user_lang(message.from_user.id)))
 
 
+# --- MAHSULOTLAR RO'YXATI (2 QISMLI: ARTIKUL YOKI EXCEL) ---
+@router.message(F.text.in_(["📋 Mahsulotlar ro'yxati", "📋 Список товаров"]))
+async def show_products_list_menu(message: Message):
+    if message.from_user.id in ADMIN_IDS:
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🔍 Faqat artikul va nomlari", callback_data="list_text")],
+                [InlineKeyboardButton(text="📊 Excel faylni olish (.xlsx)", callback_data="list_excel")]
+            ]
+        )
+        await message.answer("Mahsulotlar ro'yxatini qaysi shaklda ko'rmoqchisiz?", reply_markup=kb)
+
+
+@router.callback_query(F.data == "list_text")
+async def send_products_text(callback: CallbackQuery):
+    if callback.from_user.id in ADMIN_IDS:
+        cursor.execute("SELECT id, name FROM products")
+        products = cursor.fetchall()
+        if not products:
+            await callback.message.answer("Bazada mahsulotlar yo'q.")
+            await callback.answer()
+            return
+        
+        text = "📋 **Artikul va Mahsulot nomlari:**\n\n"
+        for p in products:
+            text += f"• `{p[0]}` — {p[1]}\n"
+            if len(text) > 3500:
+                await callback.message.answer(text, parse_mode="Markdown")
+                text = ""
+        if text:
+            await callback.message.answer(text, parse_mode="Markdown")
+        await callback.answer()
+
+
+@router.callback_query(F.data == "list_excel")
+async def send_products_excel(callback: CallbackQuery):
+    if callback.from_user.id in ADMIN_IDS:
+        import pandas as pd
+        cursor.execute("SELECT id, name, category, volume, price, description FROM products")
+        rows = cursor.fetchall()
+        
+        df = pd.DataFrame(rows, columns=["Артикул", "Название", "Категория", "Объем", "Цена", "Описание"])
+        file_path = "Prais_Viridi.xlsx"
+        df.to_excel(file_path, index=False)
+        
+        from aiogram.types import FSInputFile
+        doc = FSInputFile(file_path)
+        await callback.message.answer_document(doc, caption="📊 Joriy mahsulotlar Excel fayli")
+        await callback.answer()
+
+
 # --- MAHSULOTLAR KATEGORIYALARI ---
 @router.message(F.text.in_(["🛍 Mahsulotlar", "🛍 Товары"]))
 async def show_categories(message: Message):
@@ -498,28 +550,6 @@ async def clear_cart(callback: CallbackQuery):
     await callback.message.edit_text("Savatcha tozalandi.")
 
 
-# --- MAHSULOTLAR RO'YXATI (FAQAT ADMIN UCHUN ARTIKUL BILAN) ---
-@router.message(F.text.in_(["📋 Mahsulotlar ro'yxati", "📋 Список товаров"]))
-async def show_products_list(message: Message):
-    if message.from_user.id in ADMIN_IDS:
-        cursor.execute("SELECT id, name, volume, price FROM products")
-        products = cursor.fetchall()
-        if not products:
-            await message.answer("Bazada mahsulotlar yo'q.")
-            return
-        
-        text = "📋 **Barcha mahsulotlar ro'yxati (Artikullari bilan):**\n\n"
-        for p in products:
-            text += f"Artikul: {p[0]} | {p[1]} ({p[2]}) — {int(p[3])} so'm\n"
-            
-            if len(text) > 3500:
-                await message.answer(text, parse_mode="Markdown")
-                text = ""
-        
-        if text:
-            await message.answer(text, parse_mode="Markdown")
-
-
 PORT = int(os.environ.get("PORT", 10000))
 
 async def handle(request):
@@ -539,7 +569,7 @@ async def main():
     dp.include_router(router)
     await bot.delete_webhook(drop_pending_updates=True)
     await web_server()
-    print("Bot ishga tushdi va artikullar ID qilib belgilandi!")
+    print("Bot ishga tushdi va 2 qismli ro'yxat qo'shildi!")
     await dp.start_polling(bot)
 
 
