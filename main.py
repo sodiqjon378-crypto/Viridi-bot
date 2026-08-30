@@ -94,7 +94,7 @@ def init_default_products():
         ("110352", "VIRida Islandiya buloqlari", "soap", "5200 ml", 125000, "4 xil gialuronli antibakterial suyuq sovun, 0+, gipoallergen, paxta urug'i yog'i bilan"),
         ("110452", "VIRida Fudzi afsonalari", "soap", "5200 ml", 130000, "4 xil gialuronli antibakterial suyuq krem-sovun, 0+, gipoallergen, paxta urug'i yog'i bilan"),
 
-        # Oshxona uchun (degreaser / kitchen)
+        # Oshxona uchun (degreaser)
         ("210105", "VIRjet Antijir", "degreaser", "500 ml", 40000, "Konsentrlangan oshxona vositasi yog' va kuyiklarga qarshi, hidsiz"),
         ("280505", "Viris Yog'ga yo'q!", "degreaser", "500 ml", 35000, "Oshxona vositasi yog' va kuyiklarga qarshi, hidsiz"),
         ("260110", "VIRma idish yuvish geli", "degreaser", "1000 ml", 50000, "Gialuron kislotali konsentrlangan gel, meva va bolalar idishlari uchun"),
@@ -103,7 +103,7 @@ def init_default_products():
         ("260352", "VIRma Tog' o'tlari", "degreaser", "5200 ml", 130000, "Tog' o'tlari ekstraktli konsentrlangan idish yuvish geli"),
         ("260552", "Virma - Pamelo", "degreaser", "5200 ml", 130000, "Pamelo xushbo'y konsentrlangan idish yuvish geli"),
 
-        # Uy tozalash va pol yuvish uchun (homeclean)
+        # Uy tozalash va pol yuvish uchun (homeclean) — VIRlan PRO S6 shu yerga ko'chirildi
         ("210205", "VIRjet Universal", "homeclean", "500 ml", 40000, "Mebellar va qattiq yuzalar uchun universal dog' tozalovchi"),
         ("280605", "Viris Hammasi toza!", "homeclean", "500 ml", 35000, "Mebellar va yuzalar uchun universal dog' tozalovchi"),
         ("240110", "Viround liliya va gortenziya", "homeclean", "1000 ml", 40000, "Pol yuvish uchun konsentrlangan antibakterial vosita"),
@@ -114,6 +114,7 @@ def init_default_products():
         ("240252", "VIRound Life planet", "homeclean", "5200 ml", 110000, "Bergamot va jasminli pol yuvish vositasi"),
         ("240352", "Viround Moonlight", "homeclean", "5200 ml", 120000, "Parfyumlangan konsentrlangan pol yuvish vositasi"),
         ("240552", "Viround Pet Friendly", "homeclean", "5200 ml", 120000, "Uy hayvonlari hidini yo'qotuvchi pol yuvish vositasi"),
+        ("350605", "VIRlan PRO S6 Triqer", "homeclean", "500 ml", 100000, "Skotch, graffiti va saqich dog'larini ketkazuvchi professional vosita"),
 
         # Vanna va tualet uchun (bathroom)
         ("220105", "VIRsant kislotali vosita", "bathroom", "500 ml", 40000, "Tualet va vanna uchun zang va qatlam tozalovchi"),
@@ -136,8 +137,7 @@ def init_default_products():
         ("510352", "VIRis Color gel", "laundry", "5200 ml", 140000, "Rangli kirlar uchun konsentrlangan gel, 150 yuvish"),
         ("520352", "VIRis Greenly konditsioner", "laundry", "5200 ml", 135000, "Greenly mato konditsioneri, 130 yuvish"),
         ("510152", "VIRIS gel Universal", "laundry", "5200 ml", 140000, "Oq va rangli kir yuvish geli, 150 yuvish"),
-        ("520252", "VIRIS konditsioner Harmony", "laundry", "5200 ml", 135000, "Harmony mato konditsioneri, 130 yuvish"),
-        ("350605", "VIRlan PRO S6 Triqer", "laundry", "500 ml", 100000, "Skotch, graffiti va saqich dog'larini ketkazuvchi professional vosita")
+        ("520252", "VIRIS konditsioner Harmony", "laundry", "5200 ml", 135000, "Harmony mato konditsioneri, 130 yuvish")
     ]
     
     for art, name, cat, vol, price, desc in products_list:
@@ -209,7 +209,7 @@ def admin_menu(lang="uz"):
     if lang == "ru":
         return ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="➕ Добавить товар"), KeyboardButton(text="❌ Удалить товар")],
+                [KeyboardButton(text="➕ Добавить товар"), KeyboardButton(text="❌ Очистить фото")],
                 [KeyboardButton(text="📋 Список товаров"), KeyboardButton(text="🔙 Главное меню")],
             ],
             resize_keyboard=True,
@@ -217,7 +217,7 @@ def admin_menu(lang="uz"):
     else:
         return ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="➕ Mahsulot qo'shish"), KeyboardButton(text="❌ Mahsulotni o'chirish")],
+                [KeyboardButton(text="➕ Mahsulot qo'shish"), KeyboardButton(text="❌ Rasmini tozalash")],
                 [KeyboardButton(text="📋 Mahsulotlar ro'yxati"), KeyboardButton(text="🔙 Asosiy menyu")],
             ],
             resize_keyboard=True,
@@ -294,7 +294,7 @@ async def about_us(message: Message):
 @router.message(F.text.in_(["📞 Bog'lanish", "📞 Контакты"]))
 async def contact_us(message: Message):
     lang = get_user_lang(message.from_user.id)
-    text = "📞 Murojaat uchun:\n\n👤 Telegram: @um1daxon3339\n📱 Telefon: +998937413339" if lang == "uz" else "📞 Контакты:\n\n👤 Telegram: @um1daxon3339\n📱 Телефон: +998937413339"
+    text = "📞 Murojaat uchun:\n\n👤 Telegram: @um1daxon3339\n📱 Телефон: +998937413339" if lang == "uz" else "📞 Контакты:\n\n👤 Telegram: @um1daxon3339\n📱 Телефон: +998937413339"
     await message.answer(text)
 
 
@@ -321,7 +321,7 @@ async def add_product_photo(message: Message, state: FSMContext):
     photo_id = message.photo[-1].file_id
     await state.update_data(media_id=photo_id)
     lang = get_user_lang(message.from_user.id)
-    await message.answer("Mahsulot ID raqamini yoki nomini yuboring:" if lang == "uz" else "Введите ID товара:")
+    await message.answer("Mahsulot ID raqamini yuboring:" if lang == "uz" else "Введите ID товара:")
     await state.set_state(AddProductState.info)
 
 
@@ -331,8 +331,66 @@ async def add_product_finish(message: Message, state: FSMContext):
     if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
         await back_to_main(message, state)
         return
+    
+    if not message.text.isdigit():
+        await message.answer("Iltimos, faqat raqam (ID) kiriting:")
+        return
+
+    prod_id = int(message.text)
+    data = await state.get_data()
+    media_id = data.get("media_id")
+
+    cursor.execute("SELECT name FROM products WHERE id = ?", (prod_id,))
+    prod = cursor.fetchone()
+    if not prod:
+        await message.answer("Bunday ID raqamli mahsulot topilmadi!")
+        return
+
+    cursor.execute("UPDATE products SET media_id = ? WHERE id = ?", (media_id, prod_id))
+    conn.commit()
     await state.clear()
-    await message.answer("✅ Rasm qabul qilindi!", reply_markup=admin_menu(lang))
+    await message.answer(f"✅ '{prod[0]}' uchun rasm muvaffaqiyatli qo'shildi!", reply_markup=admin_menu(lang))
+
+
+# --- MAHSULOT RASMINI TOZALASH ---
+@router.message(F.text.in_(["❌ Rasmini tozalash", "❌ Очистить фото"]))
+async def start_delete_product(message: Message, state: FSMContext):
+    if message.from_user.id in ADMIN_IDS:
+        cursor.execute("SELECT id, article, name, volume, price FROM products")
+        products = cursor.fetchall()
+        if not products:
+            await message.answer("Mahsulotlar yo'q.")
+            return
+        text = "Rasmini o'chirmoqchi (tozalamoqchi) bo'lgan mahsulot **ID raqamini** yozing:\n\n"
+        for p in products:
+            art_str = f"[{p[1]}] " if p[1] else ""
+            text += f"ID: {p[0]} | {art_str}{p[2]} ({p[3]}) — {int(p[4])} so'm\n"
+        await message.answer(text, reply_markup=ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="🔙 Bekor qilish")]], resize_keyboard=True), parse_mode="Markdown")
+        await state.set_state(DeleteProductState.product_id)
+
+
+@router.message(DeleteProductState.product_id)
+async def process_delete_product(message: Message, state: FSMContext):
+    if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
+        await state.clear()
+        await message.answer("Bekor qilindi.", reply_markup=admin_menu(get_user_lang(message.from_user.id)))
+        return
+
+    if not message.text.isdigit():
+        await message.answer("Iltimos, faqat raqam (ID) kiriting:")
+        return
+
+    prod_id = int(message.text)
+    cursor.execute("SELECT id, name FROM products WHERE id = ?", (prod_id,))
+    prod = cursor.fetchone()
+    if not prod:
+        await message.answer("Bunday ID raqamli mahsulot topilmadi:")
+        return
+
+    cursor.execute("UPDATE products SET media_id = '' WHERE id = ?", (prod_id,))
+    conn.commit()
+    await state.clear()
+    await message.answer(f"✅ '{prod[1]}' ning rasmi tozalandi (mahsulot bazada saqlanib qoldi)!", reply_markup=admin_menu(get_user_lang(message.from_user.id)))
 
 
 # --- MAHSULOTLAR KATEGORIYALARI ---
@@ -463,46 +521,6 @@ async def clear_cart(callback: CallbackQuery):
     await callback.message.edit_text("Savatcha tozalandi.")
 
 
-# --- MAHSULOTNI O'CHIRISH ---
-@router.message(F.text.in_(["❌ Mahsulotni o'chirish", "❌ Удалить товар"]))
-async def start_delete_product(message: Message, state: FSMContext):
-    if message.from_user.id in ADMIN_IDS:
-        cursor.execute("SELECT id, name, price FROM products")
-        products = cursor.fetchall()
-        if not products:
-            await message.answer("O'chirish uchun mahsulotlar yo'q.")
-            return
-        text = "O'chirmoqchi bo'lgan mahsulot **ID raqamini** yozing:\n\n"
-        for p in products:
-            text += f"ID: {p[0]} | {p[1]} — {int(p[2])} so'm\n"
-        await message.answer(text, reply_markup=ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="🔙 Bekor qilish")]], resize_keyboard=True), parse_mode="Markdown")
-        await state.set_state(DeleteProductState.product_id)
-
-
-@router.message(DeleteProductState.product_id)
-async def process_delete_product(message: Message, state: FSMContext):
-    if message.text == "🔙 Bekor qilish":
-        await state.clear()
-        await message.answer("Bekor qilindi.", reply_markup=admin_menu(get_user_lang(message.from_user.id)))
-        return
-
-    if not message.text.isdigit():
-        await message.answer("Iltimos, faqat raqam (ID) kiriting:")
-        return
-
-    prod_id = int(message.text)
-    cursor.execute("SELECT id, name FROM products WHERE id = ?", (prod_id,))
-    prod = cursor.fetchone()
-    if not prod:
-        await message.answer("Bunday ID raqamli mahsulot topilmadi:")
-        return
-
-    cursor.execute("DELETE FROM products WHERE id = ?", (prod_id,))
-    conn.commit()
-    await state.clear()
-    await message.answer(f"✅ '{prod[1]}' o'chirildi!", reply_markup=admin_menu(get_user_lang(message.from_user.id)))
-
-
 # --- MAHSULOTLAR RO'YXATI (FAQAT ADMIN UCHUN ARTIKUL BILAN) ---
 @router.message(F.text.in_(["📋 Mahsulotlar ro'yxati", "📋 Список товаров"]))
 async def show_products_list(message: Message):
@@ -518,7 +536,6 @@ async def show_products_list(message: Message):
             art_str = f"Artikul: {p[1]} | " if p[1] else ""
             text += f"ID: {p[0]} | {art_str}{p[2]} ({p[3]}) — {int(p[4])} so'm\n"
             
-            # Xabar uzunligi Telegram limitidan oshib ketmasligi uchun qismlarga bo'lib yuboramiz
             if len(text) > 3500:
                 await message.answer(text, parse_mode="Markdown")
                 text = ""
@@ -546,7 +563,7 @@ async def main():
     dp.include_router(router)
     await bot.delete_webhook(drop_pending_updates=True)
     await web_server()
-    print("Bot ishga tushdi va barcha mahsulotlar yuklandi!")
+    print("Bot ishga tushdi va mahsulotlar joylashtirildi!")
     await dp.start_polling(bot)
 
 
