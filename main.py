@@ -149,10 +149,10 @@ def init_default_products():
         if not cursor.fetchone():
             cursor.execute(
                 """
-                INSERT INTO products (id, name, category, volume, price, description, media_type) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO products (id, name, category, volume, price, description, media_id, media_type) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (art, name, cat, vol, price, desc, "")
+                (art, name, cat, vol, price, desc, "", "")
             )
     conn.commit()
 
@@ -234,9 +234,10 @@ def admin_menu(lang="uz"):
         return ReplyKeyboardMarkup(
             keyboard=[
                 [KeyboardButton(text="➕ Добавить товар"), KeyboardButton(text="📸 Добавить/изменить фото")],
-                [KeyboardButton(text="✏️ Редактировать товар"), KeyboardButton(text="❌ Удалить товар")],
-                [KeyboardButton(text="📋 Список товаров"), KeyboardButton(text="👥 Заявки дилеров")],
-                [KeyboardButton(text="📮 Просмотр отзывов"), KeyboardButton(text="🔙 Главное меню")],
+                [KeyboardButton(text="🖼 Статус фоток"), KeyboardButton(text="✏️ Редактировать товар")],
+                [KeyboardButton(text="❌ Удалить товар"), KeyboardButton(text="📋 Список товаров")],
+                [KeyboardButton(text="👥 Заявки дилеров"), KeyboardButton(text="📮 Просмотр отзывов")],
+                [KeyboardButton(text="🔙 Главное меню")],
             ],
             resize_keyboard=True,
         )
@@ -244,9 +245,10 @@ def admin_menu(lang="uz"):
         return ReplyKeyboardMarkup(
             keyboard=[
                 [KeyboardButton(text="➕ Mahsulot qo'shish"), KeyboardButton(text="📸 Rasm qo'shish / o'zgartirish")],
-                [KeyboardButton(text="✏️ Mahsulotni tahrirlash"), KeyboardButton(text="❌ Mahsulotni o'chirish")],
-                [KeyboardButton(text="📋 Mahsulotlar ro'yxati"), KeyboardButton(text="👥 Dillerlar arizalari")],
-                [KeyboardButton(text="📮 Fikr-mulohazalarni ko'rish"), KeyboardButton(text="🔙 Asosiy menyu")],
+                [KeyboardButton(text="🖼 Rasmlar holati"), KeyboardButton(text="✏️ Mahsulotni tahrirlash")],
+                [KeyboardButton(text="❌ Mahsulotni o'chirish"), KeyboardButton(text="📋 Mahsulotlar ro'yxati")],
+                [KeyboardButton(text="👥 Dillerlar arizalari"), KeyboardButton(text="📮 Fikr-mulohazalarni ko'rish")],
+                [KeyboardButton(text="🔙 Asosiy menyu")],
             ],
             resize_keyboard=True,
         )
@@ -405,6 +407,44 @@ async def admin_panel(message: Message):
     if message.from_user.id in ADMIN_IDS:
         lang = get_user_lang(message.from_user.id)
         await message.answer("Admin panel:", reply_markup=admin_menu(lang))
+
+
+# --- RASMLAR HOLATINI TEKSHIRISH ("Rasmi borlar / Rasmi yo'qlar") ---
+@router.message(F.text.in_(["🖼 Rasmlar holati", "🖼 Статус фоток"]))
+async def check_photos_status(message: Message):
+    if message.from_user.id in ADMIN_IDS:
+        cursor.execute("SELECT id, name, media_id FROM products")
+        products = cursor.fetchall()
+        if not products:
+            await message.answer("Bazada mahsulotlar topilmadi.")
+            return
+
+        with_photo = []
+        without_photo = []
+
+        for p in products:
+            if p[2] and p[2].strip():
+                with_photo.append(f"• `{p[0]}` — {p[1]}")
+            else:
+                without_photo.append(f"• `{p[0]}` — {p[1]}")
+
+        text = f"📊 **Mahsulotlar rasmlari holati:**\n\n"
+        text += f"✅ **Rasmi borlar ({len(with_photo)} ta):**\n"
+        text += "\n".join(with_photo[:30]) if with_photo else "Hozircha rasmli mahsulot yo'q."
+        if len(with_photo) > 30:
+            text += f"\n... va yana {len(with_photo) - 30} ta."
+
+        text += f"\n\n❌ **Rasmi yo'qlar ({len(without_photo)} ta):**\n"
+        text += "\n".join(without_photo[:30]) if without_photo else "Barcha mahsulotlarga rasm qo'yilgan!"
+        if len(without_photo) > 30:
+            text += f"\n... va yana {len(without_photo) - 30} ta."
+
+        # Xabar uzunligi limitidan oshib ketmasligi uchun bo'lib yuboramiz
+        if len(text) > 4000:
+            await message.answer(text[:4000], parse_mode="Markdown")
+            await message.answer(text[4000:], parse_mode="Markdown")
+        else:
+            await message.answer(text, parse_mode="Markdown")
 
 
 # --- MAHSULOTGA RASM QO'SHISH / O'ZGARTIRISH ---
@@ -936,7 +976,7 @@ async def main():
     dp.include_router(router)
     await bot.delete_webhook(drop_pending_updates=True)
     await web_server()
-    print("Bot ishga tushdi va rasm qo'shish funksiyasi qo'shildi!")
+    print("Bot ishga tushdi va 'Rasmlar holati' funksiyasi qo'shildi!")
     await dp.start_polling(bot)
 
 
