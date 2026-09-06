@@ -175,8 +175,13 @@ class AddProductState(StatesGroup):
     description = State()
 
 
+class EditProductPhotoState(StatesGroup):
+    article = State()
+    photo = State()
+
+
 class EditProductState(StatesGroup):
-    article = StateField = State()
+    article = State()
     field = State()
     new_value = State()
 
@@ -228,20 +233,20 @@ def admin_menu(lang="uz"):
     if lang == "ru":
         return ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="➕ Добавить товар"), KeyboardButton(text="✏️ Редактировать товар")],
-                [KeyboardButton(text="❌ Удалить товар"), KeyboardButton(text="📋 Список товаров")],
-                [KeyboardButton(text="👥 Заявки дилеров"), KeyboardButton(text="📮 Просмотр отзывов")],
-                [KeyboardButton(text="🔙 Главное меню")],
+                [KeyboardButton(text="➕ Добавить товар"), KeyboardButton(text="📸 Добавить/изменить фото")],
+                [KeyboardButton(text="✏️ Редактировать товар"), KeyboardButton(text="❌ Удалить товар")],
+                [KeyboardButton(text="📋 Список товаров"), KeyboardButton(text="👥 Заявки дилеров")],
+                [KeyboardButton(text="📮 Просмотр отзывов"), KeyboardButton(text="🔙 Главное меню")],
             ],
             resize_keyboard=True,
         )
     else:
         return ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="➕ Mahsulot qo'shish"), KeyboardButton(text="✏️ Mahsulotni tahrirlash")],
-                [KeyboardButton(text="❌ Mahsulotni o'chirish"), KeyboardButton(text="📋 Mahsulotlar ro'yxati")],
-                [KeyboardButton(text="👥 Dillerlar arizalari"), KeyboardButton(text="📮 Fikr-mulohazalarni ko'rish")],
-                [KeyboardButton(text="🔙 Asosiy menyu")],
+                [KeyboardButton(text="➕ Mahsulot qo'shish"), KeyboardButton(text="📸 Rasm qo'shish / o'zgartirish")],
+                [KeyboardButton(text="✏️ Mahsulotni tahrirlash"), KeyboardButton(text="❌ Mahsulotni o'chirish")],
+                [KeyboardButton(text="📋 Mahsulotlar ro'yxati"), KeyboardButton(text="👥 Dillerlar arizalari")],
+                [KeyboardButton(text="📮 Fikr-mulohazalarni ko'rish"), KeyboardButton(text="🔙 Asosiy menyu")],
             ],
             resize_keyboard=True,
         )
@@ -402,6 +407,57 @@ async def admin_panel(message: Message):
         await message.answer("Admin panel:", reply_markup=admin_menu(lang))
 
 
+# --- MAHSULOTGA RASM QO'SHISH / O'ZGARTIRISH ---
+@router.message(F.text.in_(["📸 Rasm qo'shish / o'zgartirish", "📸 Добавить/изменить фото"]))
+async def edit_photo_start(message: Message, state: FSMContext):
+    if message.from_user.id in ADMIN_IDS:
+        lang = get_user_lang(message.from_user.id)
+        cancel = "🔙 Bekor qilish" if lang == "uz" else "🔙 Отмена"
+        kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=cancel)]], resize_keyboard=True)
+        await message.answer("Rasmini qo'shmoqchi yoki o'zgartirmoqchi bo'lgan mahsulot **Artikulini** (ID raqamini) kiriting:", reply_markup=kb)
+        await state.set_state(EditProductPhotoState.article)
+
+
+@router.message(EditProductPhotoState.article)
+async def edit_photo_get_article(message: Message, state: FSMContext):
+    if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
+        await back_to_main(message, state)
+        return
+    
+    artikul = message.text.strip()
+    cursor.execute("SELECT id, name FROM products WHERE id = ?", (artikul,))
+    prod = cursor.fetchone()
+    if not prod:
+        await message.answer("Bunday artikulli mahsulot topilmadi! Qaytadan to'g'ri artikul kiriting:")
+        return
+
+    await state.update_data(article=artikul)
+    await message.answer(f"Mahsulot topildi: **{prod[1]}**\nEndi ushbu mahsulot uchun **yangi rasmni** yuboring:", parse_mode="Markdown")
+    await state.set_state(EditProductPhotoState.photo)
+
+
+@router.message(EditProductPhotoState.photo, F.photo)
+async def edit_photo_save(message: Message, state: FSMContext):
+    photo_id = message.photo[-1].file_id
+    data = await state.get_data()
+    artikul = data.get("article")
+
+    cursor.execute("UPDATE products SET media_id = ? WHERE id = ?", (photo_id, artikul))
+    conn.commit()
+    await state.clear()
+
+    lang = get_user_lang(message.from_user.id)
+    await message.answer("✅ Mahsulot rasmi muvaffaqiyatli qo'shildi / yangilandi!", reply_markup=admin_menu(lang))
+
+
+@router.message(EditProductPhotoState.photo)
+async def edit_photo_wrong_type(message: Message, state: FSMContext):
+    if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
+        await back_to_main(message, state)
+        return
+    await message.answer("Iltimos, rasm formatida yuboring (yoki amalni bekor qilish uchun tugmani bosing):")
+
+
 # 1. Mahsulot qo'shish
 @router.message(F.text.in_(["➕ Mahsulot qo'shish", "➕ Добавить товар"]))
 async def add_product_start(message: Message, state: FSMContext):
@@ -409,7 +465,7 @@ async def add_product_start(message: Message, state: FSMContext):
         lang = get_user_lang(message.from_user.id)
         cancel = "🔙 Bekor qilish" if lang == "uz" else "🔙 Отмена"
         kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=cancel)]], resize_keyboard=True)
-        await message.answer("Yangi mahsulot **rasmini** yuboring (yoki rasm bo'lmasa skip deb yozing):" if lang == "uz" else "Отправьте фото товара:", reply_markup=kb)
+        await message.answer("Yangi mahsulot **rasmini** yuboring (yoki rasm bo'lmasa skip deb yozing):", reply_markup=kb)
         await state.set_state(AddProductState.media)
 
 
@@ -833,7 +889,8 @@ async def show_cart(message: Message):
     cursor.execute("SELECT p.name, c.quantity, p.price, c.product_id FROM cart c JOIN products p ON c.product_id = p.id WHERE c.user_id = ?", (message.from_user.id,))
     items = cursor.fetchall()
     if not items:
-        await message.answer("Savatchangiz bo'sh. 🛒")
+        default_lang = get_user_lang(message.from_user.id)
+        await message.answer("Savatchangiz bo'sh. 🛒" if default_lang == "uz" else "Корзина пуста. 🛒")
         return
 
     text = "🛒 **Sizning savatchangiz:**\n\n"
@@ -879,7 +936,7 @@ async def main():
     dp.include_router(router)
     await bot.delete_webhook(drop_pending_updates=True)
     await web_server()
-    print("Bot ishga tushdi va barcha 48 ta mahsulot bazaga qo'shildi!")
+    print("Bot ishga tushdi va rasm qo'shish funksiyasi qo'shildi!")
     await dp.start_polling(bot)
 
 
