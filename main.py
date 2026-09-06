@@ -80,9 +80,13 @@ CREATE TABLE IF NOT EXISTS feedback (
 conn.commit()
 
 
-# --- 46 TA MAHSULOTNI ARTIKULI BILAN BAZAGA JOYlash ---
+# --- 48 TA MAHSULOTNI ARTIKULI BILAN BAZAGA JOYlash ---
 def init_default_products():
     products_list = [
+        # Yangi mahsulotlar
+        ("32478", "OPPO Многофункциональный кислородный очиститель", "laundry", "450 gr", 30000, "Россия, с ароматом Lenor. Отбеливатель, пятновыводитель. Безопасен для детских вещей (0+), гипоаллергенный, 50+ способов применения для всего дома. OPPO – Пятна удалит легко!"),
+        ("250105", "Virlik — для стёкол, пластика и зеркал", "homeclean", "500 ml", 30000, "100% natija, yaltiroqlik, dog'larsiz tozalash va himoya qatlami. Chayishni talab qilmaydi. Bergamot, mushkat salviyasi va yalpiz aralashmasi, bahor gullari hidi."),
+
         # Suyuq sovunlar / Krem-sovunlar (soap)
         ("140105", "VIRIS Olchali tort", "soap", "500 ml", 30000, "paxta urug'i yog'li gipoallergen suyuq krem-sovun 0+"),
         ("110110", "VIRida Ertaknamo Bali", "soap", "1000 ml", 45000, "4 xil gialuronli antibakterial suyuq sovun, 0+, gipoallergen, kokos yog'i bilan"),
@@ -160,7 +164,7 @@ bot = Bot(token=TOKEN)
 router = Router()
 
 
-# --- FSM STATE-LAR (Barcha bo'limlar uchun) ---
+# --- FSM STATE-LAR ---
 class AddProductState(StatesGroup):
     media = State()
     article = State()
@@ -220,7 +224,6 @@ def main_menu(lang="uz", is_admin=False):
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 
-# Skrinshotdagi aniq 6 ta tugma va Asosiy menyu bilan admin panel klaviaturasi
 def admin_menu(lang="uz"):
     if lang == "ru":
         return ReplyKeyboardMarkup(
@@ -296,7 +299,6 @@ async def back_to_main(message: Message, state: FSMContext):
     await message.answer("Asosiy menyu:" if lang == "uz" else "Главное меню:", reply_markup=main_menu(lang, is_admin))
 
 
-# --- KAFE VA RESTORANLAR ---
 @router.message(F.text.in_(["☕️ Kafe va restoranlar", "☕️ Кафе и рестораны"]))
 async def cafe_restaurants(message: Message):
     lang = get_user_lang(message.from_user.id)
@@ -318,7 +320,6 @@ async def contact_us(message: Message):
     await message.answer(text)
 
 
-# --- DILER BO'LISH (Foydalanuvchi uchun) ---
 @router.message(F.text.in_(["🤝 Diler bo'lish", "🤝 Стать дилером"]))
 async def become_dealer(message: Message, state: FSMContext):
     lang = get_user_lang(message.from_user.id)
@@ -356,7 +357,6 @@ async def dealer_phone(message: Message, state: FSMContext):
     lang = get_user_lang(user_id)
     await message.answer("✅ Arizangiz qabul qilindi! Tez orada menejerlarimiz siz bilan bog'lanishadi." if lang == "uz" else "✅ Заявка принята!", reply_markup=main_menu(lang, user_id in ADMIN_IDS))
     
-    # Adinlarga xabar berish
     for admin_id in ADMIN_IDS:
         try:
             await bot.send_message(admin_id, f"🚨 **Yangi diler arizasi!**\n\n👤 F.I.Sh: {full_name}\n📞 Tel: {phone}\n🆔 ID: {user_id}", parse_mode="Markdown")
@@ -364,7 +364,6 @@ async def dealer_phone(message: Message, state: FSMContext):
             pass
 
 
-# --- FIKR VA MULOHAZA ---
 @router.message(F.text.in_(["✍️ Fikr va mulohaza", "✍️ Отзывы"]))
 async def feedback_start(message: Message, state: FSMContext):
     lang = get_user_lang(message.from_user.id)
@@ -396,7 +395,6 @@ async def feedback_finish(message: Message, state: FSMContext):
             pass
 
 
-# --- ADMIN PANEL ---
 @router.message(F.text.in_(["⚙️ Admin Panel", "⚙️ Админ панель"]))
 async def admin_panel(message: Message):
     if message.from_user.id in ADMIN_IDS:
@@ -459,7 +457,7 @@ async def add_product_category(message: Message, state: FSMContext):
         await back_to_main(message, state)
         return
     await state.update_data(category=message.text.strip())
-    await message.answer("Hajmini yozing (masalan: 500 ml, 1000 ml, 5200 ml):")
+    await message.answer("Hajmini yozing (masalan: 500 ml, 450 gr, 5200 ml):")
     await state.set_state(AddProductState.volume)
 
 
@@ -469,7 +467,7 @@ async def add_product_volume(message: Message, state: FSMContext):
         await back_to_main(message, state)
         return
     await state.update_data(volume=message.text.strip())
-    await message.answer("Narxini kiriting (faqat raqam bilan, masalan: 45000):")
+    await message.answer("Narxini kiriting (faqat raqam bilan, masalan: 30000):")
     await state.set_state(AddProductState.price)
 
 
@@ -620,7 +618,7 @@ async def delete_product_finish(message: Message, state: FSMContext):
     await message.answer(f"✅ '{prod[0]}' bazadan butunlay o'chirildi!", reply_markup=admin_menu(lang))
 
 
-# 4. Mahsulotlar ro'yxati (2 qismli: matnli artikul/nom yoki Excel fayl)
+# 4. Mahsulotlar ro'yxati (Matn yoki Excel)
 @router.message(F.text.in_(["📋 Mahsulotlar ro'yxati", "📋 Список товаров"]))
 async def show_products_list_menu(message: Message):
     if message.from_user.id in ADMIN_IDS:
@@ -734,7 +732,7 @@ async def show_feedbacks(message: Message):
         await message.answer(text, parse_mode="Markdown")
 
 
-# --- MAHSULOTLAR KATEGORIYALARI (Foydalanuvchi uchun) ---
+# --- MAHSULOTLAR KATEGORIYALARI ---
 @router.message(F.text.in_(["🛍 Mahsulotlar", "🛍 Товары"]))
 async def show_categories(message: Message):
     lang = get_user_lang(message.from_user.id)
@@ -881,7 +879,7 @@ async def main():
     dp.include_router(router)
     await bot.delete_webhook(drop_pending_updates=True)
     await web_server()
-    print("Bot ishga tushdi va barcha 6 ta admin bo'limi to'liq tiklandi!")
+    print("Bot ishga tushdi va barcha 48 ta mahsulot bazaga qo'shildi!")
     await dp.start_polling(bot)
 
 
