@@ -199,6 +199,11 @@ class FeedbackState(StatesGroup):
     text = State()
 
 
+class CheckoutState(StatesGroup):
+    phone = State()
+    address = State()
+
+
 def get_user_lang(user_id):
     cursor.execute("SELECT lang FROM users WHERE user_id = ?", (user_id,))
     res = cursor.fetchone()
@@ -409,7 +414,104 @@ async def admin_panel(message: Message):
         await message.answer("Admin panel:", reply_markup=admin_menu(lang))
 
 
-# --- RASMLAR HOLATINI TEKSHIRISH ("Rasmi borlar / Rasmi yo'qlar") ---
+# --- BUYURTMA BERISH (CHECKOUT) ---
+@router.callback_query(F.data == "start_checkout")
+async def start_checkout(callback: CallbackQuery, state: FSMContext):
+    user_id = callback.from_user.id
+    cursor.execute("SELECT COUNT(*) FROM cart WHERE user_id = ?", (user_id,))
+    count = cursor.fetchone()[0]
+    if count == 0:
+        await callback.answer("Savatchangiz bo'sh!", show_alert=True)
+        return
+
+    lang = get_user_lang(user_id)
+    cancel = "🔙 Bekor qilish" if lang == "uz" else "🔙 Отмена"
+    kb = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📱 Telefon raqamni yuborish", request_contact=True)],
+            [KeyboardButton(text=cancel)]
+        ],
+        resize_keyboard=True
+    )
+    await callback.message.answer(
+        "📞 Buyurtmani rasmiylashtirish uchun telefon raqamingizni yuboring (tugmani bosing yoki yozing):" if lang == "uz" 
+        else "📞 Введите номер телефона:", 
+        reply_markup=kb
+    )
+    await state.set_state(CheckoutState.phone)
+    await callback.answer()
+
+
+@router.message(CheckoutState.phone, F.contact)
+async def checkout_phone_contact(message: Message, state: FSMContext):
+    phone = message.contact.phone_number
+    await state.update_data(phone=phone)
+    lang = get_user_lang(message.from_user.id)
+    cancel = "🔙 Bekor qilish" if lang == "uz" else "🔙 Отмена"
+    kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=cancel)]], resize_keyboard=True)
+    await message.answer("📍 Yetkazib berish manzilini (yoki mo'ljal) kiriting:" if lang == "uz" else "📍 Введите адрес доставки:", reply_markup=kb)
+    await state.set_state(CheckoutState.address)
+
+
+@router.message(CheckoutState.phone)
+async def checkout_phone_text(message: Message, state: FSMContext):
+    if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
+        await back_to_main(message, state)
+        return
+    phone = message.text.strip()
+    await state.update_data(phone=phone)
+    lang = get_user_lang(message.from_user.id)
+    cancel = "🔙 Bekor qilish" if lang == "uz" else "🔙 Отмена"
+    kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=cancel)]], resize_keyboard=True)
+    await message.answer("📍 Yetkazib berish manzilini (yoki mo'ljal) kiriting:" if lang == "uz" else "📍 Введите адрес доставки:", reply_markup=kb)
+    await state.set_state(CheckoutState.address)
+
+
+@router.message(CheckoutState.address)
+async def checkout_finish(message: Message, state: FSMContext):
+    if message.text in ["🔙 Bekor qilish", "🔙 Отмена"]:
+        await back_to_main(message, state)
+        return
+    
+    address = message.text.strip()
+    data = await state.get_data()
+    phone = data.get("phone")
+    user_id = message.from_user.id
+    full_name = message.from_user.full_name
+
+    # Savatchadagi mahsulotlarni olish
+    cursor.execute("SELECT p.name, c.quantity, p.price FROM cart c JOIN products p ON c.product_id = p.id WHERE c.user_id = ?", (user_id,))
+    items = cursor.fetchall()
+
+    order_text = f"🚨 **Yangi buyurtma!**\n\n👤 Mijoz: {full_name}\n📞 Tel: {phone}\n📍 Manzil: {address}\n🆔 ID: {user_id}\n\n🛒 **Buyurtma tarkibi:**\n"
+    grand_total = 0
+    for name, qty, price in items:
+        summa = int(qty * price)
+        grand_total += summa
+        order_text += f"• {name} — {qty} x {int(price)} = {summa} so'm\n"
+    order_text += f"\n💵 **Jami summa:** {grand_total} so'm"
+
+    # Adminlarga yuborish
+    for admin_id in ADMIN_IDS:
+        try:
+            await bot.send_message(admin_id, order_text, parse_mode="Markdown")
+        except Exception:
+            pass
+
+    # Savatchani tozalash
+    cursor.execute("DELETE FROM cart WHERE user_id = ?", (user_id,))
+    conn.commit()
+    await state.clear()
+
+    lang = get_user_lang(user_id)
+    await message.answer(
+        "✅ Buyurtmangiz qabul qilindi! Tez orada menejerlarimiz siz bilan bog'lanishadi." if lang == "uz" 
+        else "✅ Заказ принят! Менеджер свяжется с вами.", 
+        reply_markup=main_menu(lang, user_id in ADMIN_IDS)
+    )
+
+
+# --- RASMLAR HOLATINI TEKSHIRISH ---
 @router.message(F.text.in_(["🖼 Rasmlar holati", "🖼 Статус фоток"]))
 async def check_photos_status(message: Message):
     if message.from_user.id in ADMIN_IDS:
@@ -439,7 +541,6 @@ async def check_photos_status(message: Message):
         if len(without_photo) > 30:
             text += f"\n... va yana {len(without_photo) - 30} ta."
 
-        # Xabar uzunligi limitidan oshib ketmasligi uchun bo'lib yuboramiz
         if len(text) > 4000:
             await message.answer(text[:4000], parse_mode="Markdown")
             await message.answer(text[4000:], parse_mode="Markdown")
@@ -976,7 +1077,7 @@ async def main():
     dp.include_router(router)
     await bot.delete_webhook(drop_pending_updates=True)
     await web_server()
-    print("Bot ishga tushdi va 'Rasmlar holati' funksiyasi qo'shildi!")
+    print("Bot ishga tushdi va 'Buyurtma berish' funksiyasi qo'shildi!")
     await dp.start_polling(bot)
 
 
